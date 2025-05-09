@@ -44,6 +44,8 @@ from utils import (
     computeFrameLevelResults,
     plotGroundTruthVSPredictionsTFM,
     stitch_images,
+    print_events,
+    print_frame_level_results,
 )
 
 
@@ -60,6 +62,7 @@ class Config:
     min_duration = 15
     min_area = 15
 
+    """ Highlight and non-highlight sentences """
     # Tricking
     # highlight_sentences = [
     #     "A highlight",
@@ -221,20 +224,11 @@ def main():
 
             # Collect events
             events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
-            print(f"{Color.RED}----------- Events detected -----------")
-            for event_number, event_content in events_detected.items():
-                print(f"########### Event {event_number} ###########")
-                print(f"- Length: {event_content['length']}")
-                print(f"- Area:   {event_content['area']:.2f}")
+            print_events(events_detected, color=Color.RED, message="Events detected")
 
             # Filter events by duration
             events_filtered_by_duration = filterEvents(events=events_detected, min_duration=Config.min_duration, min_area=0, reorder_by_relevance=False)
-            print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
-            for event_number, event_content in events_filtered_by_duration.items():
-                print(f"########### Event {event_number} ###########")
-                print(f"- Length: {event_content['length']}")
-                print(f"- Area:   {event_content['area']:.2f}")
-            print(f"{Color.RESET}")
+            print_events(events_detected, color=Color.GREEN, message="Events after filtering by duration")
 
             # Compute detected events' statistics
             mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
@@ -246,18 +240,11 @@ def main():
 
             # Filter events by area
             events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=Config.min_area, reorder_by_relevance=False)
-            print(f"{Color.GREEN}----------- Events after filtering by area -----------")
-            for event_number, event_content in events_filtered.items():
-                print(f"########### Event {event_number} ###########")
-                print(f"- Length: {event_content['length']}")
-                print(f"- Area:   {event_content['area']:.2f}")
+            print_events(events_detected, color=Color.GREEN, message="Events after filtering by area")
 
             # Obtain frame level results
             recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
-            print(f"{Color.CYAN}\n----------- Frame Level Results -----------")
-            print(f"RECALL:    {recall*100:.2f}%")
-            print(f"PRECISION: {precision*100:.2f}%")
-            print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
+            print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
 
             # Plot predictions against the ground truth
             if Config.draw_individual_plots:
@@ -278,18 +265,6 @@ def main():
                     mean_area=mean_area,
                     mean_std=std_area,
                 )
-
-            # Print mean and std from the sentences' scores
-            print(f"{Color.PURPLE}\n---------- Sentence Level Results ---------")
-            for sentence, val in sentences_score_hist.items():
-                sent_mean = np.mean(val)
-                sent_std = np.std(val)
-
-                if sentence == 0:
-                    print(f"{Color.GREEN}H sentence  -> Mean: {sent_mean:.2f} / Std: {sent_std:.2f}")
-                else:
-                    print(f"{Color.RED}NH sentence -> Mean: {sent_mean:.2f} / Std: {sent_std:.2f}")
-            print(f"{Color.RESET}")
 
             # Draw histograms as individual distribution plots with KDE
             for sentence in sentences_score_hist.keys():

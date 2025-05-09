@@ -658,3 +658,20 @@ def computeMinorMetrics(
 
         # Save the plot
         plt.savefig(f"results/{metric[0]}{fig_name}")
+
+
+def print_events(events, color, message):
+    print(f"{color}----------- {message} -----------")
+    for event_number, event_content in events.items():
+        print(f"########### Event {event_number} ###########")
+        print(f"- Length: {event_content['length']}")
+        print(f"- Area:   {event_content['area']:.2f}")
+    print(f"{Color.RESET}")
+
+
+def print_frame_level_results(recall, precision, fscore, color):
+    print(f"{color}\n----------- Frame Level Results -----------")
+    print(f"RECALL:    {recall*100:.2f}%")
+    print(f"PRECISION: {precision*100:.2f}%")
+    print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
+    print(f"{Color.RESET}")
