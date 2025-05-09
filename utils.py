@@ -373,30 +373,6 @@ def closingOperation(coarse_predictions, kernel_size=61):
     return erosion
 
 
-def compute_crossing_point(curve1, curve2):
-    # Extract x and y coordinates from the dictionaries
-    x1 = np.array(curve1["x_coord"])
-    y1 = np.array(curve1["y_coord"])
-    x2 = np.array(curve2["x_coord"])
-    y2 = np.array(curve2["y_coord"])
-
-    # Calculate distances between each pair of points from the two curves
-    distances = np.sqrt((x1[:, np.newaxis] - x2) ** 2 + (y1[:, np.newaxis] - y2) ** 2)
-
-    # Find the minimum distance and corresponding indices
-    min_index = np.unravel_index(np.argmin(distances), distances.shape)
-
-    # Check if the curves do not cross (i.e., minimum distance is too large)
-    if distances[min_index] > 0.1:  # You can adjust this threshold as needed
-        raise ValueError("These 2 curves do not cross.")
-
-    # Return the coordinates of the crossing point
-    crossing_x = x1[min_index[0]]
-    crossing_y = y1[min_index[0]]
-
-    return crossing_x, crossing_y
-
-
 def detectEvents(predictions, masks):
     events = {}
     frames = []
@@ -715,14 +691,33 @@ def draw_histograms(sentences_score_hist, pair_num, hist_scale_y, results_folder
                 pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
 
 
-def compute_crossing_points(pair_num, results_folder):
+def compute_crossing_point(pair_num, results_folder):
     with open(f"{results_folder}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
         curve1 = pickle.load(f)
     with open(f"{results_folder}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
         curve2 = pickle.load(f)
 
     try:
-        crossing_x, crossing_y = compute_crossing_point(curve1, curve2)
+        # Extract x and y coordinates from the dictionaries
+        x1 = np.array(curve1["x_coord"])
+        y1 = np.array(curve1["y_coord"])
+        x2 = np.array(curve2["x_coord"])
+        y2 = np.array(curve2["y_coord"])
+
+        # Calculate distances between each pair of points from the two curves
+        distances = np.sqrt((x1[:, np.newaxis] - x2) ** 2 + (y1[:, np.newaxis] - y2) ** 2)
+
+        # Find the minimum distance and corresponding indices
+        min_index = np.unravel_index(np.argmin(distances), distances.shape)
+
+        # Check if the curves do not cross (i.e., minimum distance is too large)
+        if distances[min_index] > 0.1:  # You can adjust this threshold as needed
+            raise ValueError("These 2 curves do not cross.")
+
+        # Return the coordinates of the crossing point
+        crossing_x = x1[min_index[0]]
+        crossing_y = y1[min_index[0]]
+
         with open(f"{results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
             pickle.dump((crossing_x, crossing_y), f)
 

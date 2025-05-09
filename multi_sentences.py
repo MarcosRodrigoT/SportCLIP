@@ -26,9 +26,6 @@ Run with `python multi_sentences.py` after editing the `Config` class.  All heav
 import os
 import pickle
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 from utils import (
     Color,
     createGrounTruth,
@@ -46,7 +43,7 @@ from utils import (
     print_events,
     print_frame_level_results,
     draw_histograms,
-    compute_crossing_points,
+    compute_crossing_point,
     save_logs,
 )
 
@@ -272,7 +269,7 @@ def main():
             draw_histograms(sentences_score_hist, pair_num, Config.hist_scale_y, Config.results_folder, Config.video_name)
 
             # Compute the crossing point between the two distributions
-            compute_crossing_points(pair_num, Config.results_folder)
+            compute_crossing_point(pair_num, Config.results_folder)
 
             # Stitch the histograms and predictions together
             stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=Config.results_folder, video_name=Config.video_name)
