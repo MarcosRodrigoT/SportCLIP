@@ -247,7 +247,7 @@ def main():
 
             # Plot predictions against the ground truth
             if Config.draw_individual_plots:
-                plotGroundTruthVSPredictionsTFM(
+                plotGroundTruthVSPredictions(
                     frames_to_plot=Config.frames_to_plot,
                     ground_truth=ground_truth_list,
                     predictions=predictions_list,

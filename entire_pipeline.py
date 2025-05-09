@@ -397,7 +397,7 @@ if __name__ == "__main__":
     print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
 
     # Plot predictions against the ground truth
-    plotGroundTruthVSPredictionsTFM(
+    plotGroundTruthVSPredictions(
         frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
         ground_truth=ground_truth_list,
         predictions=median_predictions,
