@@ -3,82 +3,122 @@
 This repository contains the code, example data and reproducibility scripts for the paper  
 **“Text‑Guided Sports Highlights: A CLIP‑Based Framework for Automatic Video Summarization”**.
 
-Our framework turns **any** sports video into a concise highlight reel by:
+Our framework turns **any** sports video into a concise highlight reel by leveraging [OpenAI CLIP](https://github.com/openai/CLIP) image–text embeddings. The workflow is broken into three clear stages:
 
-1. Embedding every video frame with **CLIP ViT‑B/32**.  
-2. Comparing the frame embedding against *multiple* highlight / non‑highlight sentence prompts.  
-3. Filtering out low‐quality prompt pairs with distribution‑ and area‑based criteria.  
-4. Averaging the remaining predictions and applying a light post‑process to deliver robust, frame‑level highlight masks.
-
-The code reproduces all experiments on **MATDAT** (martial‑arts tricking), **YouTube Highlights** and our new **SportClip** benchmark covering diving, long‑jump, pole‑vault and tumbling datasets (details in Section V‑A of the paper).
+1. **Frame & embedding extraction** (`extractor.py`)
+2. **Prompt engineering & event detection** (`multi_sentences.py`)
+3. **Post‑processing & metric computation** (`entire_pipeline.py`)
 
 ---
 
-## Project layout
+## Table of Contents
+
+* [Installation](#installation)
+* [Quick‑start](#quick-start)
+* [Directory Structure](#directory-structure)
+* [Configuration](#configuration)
+* [Outputs & Results](#outputs--results)
+* [Citation](#citation)
+* [License](#license)
+
+---
+
+## Installation
+
+> Tested with **Python ≥ 3.10** on Linux/macOS and with an NVIDIA GPU + CUDA (CPU also works, but slower).
 
 ```bash
+# 1. Clone the repository
+$ git clone https://github.com/<your‑username>/<repo‑name>.git
+$ cd <repo‑name>
+
+# 2. Create an isolated environment (recommended)
+$ python3 -m venv venv
+$ source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 3. Install Python dependencies
+$ pip install --upgrade pip
+$ pip install -r requirements.txt
+
+# 4. Install and test FFmpeg / FFprobe (needed by extractor.py)
+$ ffmpeg -version && ffprobe -version  # should print version info
+```
+
+---
+
+## Quick‑start
+
+Assuming you have a video **`data/long_jump.mp4`** and its frame‑level annotation file **`data/long_jump.csv`**:
+
+```bash
+# 1. Extract frames & CLIP embeddings (≈ real‑time length, GPU makes this faster)
+$ python extractor.py \
+        --video data/long_jump.mp4 \
+        --annotations data/long_jump.csv \
+        --frames-per-second 29.97
+
+# 2. Run multiple sentence prompts to discover the best highlight / non‑highlight pairs
+$ python multi_sentences.py
+# ▸ results are written to results/<video_name>/
+
+# 3. Generate final predictions, plots & evaluation metrics
+$ python entire_pipeline.py
+# ▸ key outputs appear in results/<video_name>/Final result.png
+```
+
+All default hyper‑parameters are hard‑coded in the corresponding scripts and can be overridden via command‑line flags or by editing the classes at the top of each file.
+
+---
+
+## Directory Structure
+
+```text
 .
-├── extractor.py        # sample video frames & save CLIP embeddings
-├── multi_sentences.py  # grid-search every (H, NH) prompt pair
-├── crossing_point.py    # optional – find KDE intersections
-├── pair_ranker.py      # rank pairs with simple histogram metrics
-├── median_pipeline.py  # fuse best pairs → final events & metrics
-├── utils.py            # shared helpers (I/O, plotting, metrics…)
+├── extractor.py
+├── multi_sentences.py
+├── entire_pipeline.py
+├── utils.py
 ├── requirements.txt
-└── README.md           # you are here
-```
-
-
-`data/` (videos & CSVs) and `results/` are created on the fly.
-
----
-
-## Quick start
-
-```bash
-# 1 Install dependencies (Python ≥ 3.9)
-pip install -r requirements.txt        # choose a CUDA torch build if you have a GPU
-
-# 2 Place assets under ./data
-#      e.g.  data/V1.mpeg   data/V1.csv   …
-
-# 3 Extract frame embeddings
-python extractor.py --dataset-dir data
-
-# 4 Score every highlight / non-highlight prompt pair
-python highlight_pairs.py              # edit Config inside to change prompts & video list
-
-# 5 (Optional) extra KDE diagnostics
-python kde_crossings.py
-
-# 6 Rank pairs, fuse their curves, detect events, and evaluate
-python pair_ranker.py                  # writes intermediate variables
-python median_pipeline.py              # final metrics & plots
+├── data/                 # ─► videos (.mp4) & CSV annotations
+├── imgs/                 # ─► one sub‑folder per video with extracted frames     (generated)
+├── img_embeddings/       # ─► one sub‑folder per video with CLIP embeddings      (generated)
+└── results/              # ─► per‑video plots, logs & metrics                    (generated)
 ```
 
 ---
 
-## Script cheat-sheet
+## Configuration
 
-| Script  | Purpose |
-|---------|---------|
-|extractor.py	| Saves evenly spaced PNG frames and their 512-D CLIP vectors.|
-|highlight_pairs.py|Produces a probability curve for every highlight vs. non-highlight prompt pair.|
-|kde_crossings.py|Finds the intersection of highlight / non-highlight KDE curves (debug helper).|
-|pair_ranker.py|Calculates separation / range / AUC metrics and filters poor pairs.|
-|median_pipeline.py|Merges the surviving curves (median), detects highlight events, and scores them.|
-|utils.py|Ground-truth loading, smoothing, morphology, metrics, plotting, colours.|
+Most hyper‑parameters live at the top of each script. &#x20;
+
+* **Dataset layout**  Place each `*.mp4` next to its `*.csv` annotation in the `data/` folder.
+  The CSV must contain at least the columns `First frame`, `Last frame` and `Event type`.
+* **GPU vs CPU**  All scripts will automatically switch to CUDA if available.
+* **Custom prompts**  Edit the `highlight_sentences` and `not_highlight_sentences` lists in `multi_sentences.py`.
 
 ---
 
-## Citing
+## Outputs & Results
 
-If you find SportCLIP useful in your research, please cite:
+After running the full pipeline you will find:
+
+| Path                               | Description                                       |
+| ---------------------------------- | ------------------------------------------------- |
+| `results/<video>/Final result.png` | Summary plot of ground truth vs predictions       |
+| `results/<video>/Pairs used.txt`   | List of prompt pairs kept after filtering         |
+| `results/<video>/*.pkl`            | Pickled KDE curves, scores & auxiliary stats      |
+| `results/<video>/*.png`            | Histograms and stitched diagnostic images         |
+
+---
+
+## Citation
+
+If you find our work useful in your research, please cite:
 
 ```bibtex
 @article{rodrigo2025sportclip,
   title   = {Text-Guided Sports Highlights: A CLIP-Based Framework for Automatic Video Summarization},
-  author  = {Marcos Rodrigo and Carlos Cuevas and Narciso García},
+  author  = {Marcos Rodrigo, Carlos Cuevas, and Narciso García},
   journal = {IEEE Transactions on Consumer Electronics},
   year    = {2025}
 }
@@ -88,7 +128,7 @@ If you find SportCLIP useful in your research, please cite:
 
 ## License
 
-The code is released under the MIT License (see `LICENSE`).
-MATDAT, SportClip and YouTube Highlights have their own licenses – please respect each dataset’s terms of use.
+This project is released under the **MIT License**. &#x20;
+See [`LICENSE`](LICENSE) for details.
 
 Happy summarizing! 🎬🏅
