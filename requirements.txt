@@ -1,0 +1,12 @@
+clip @ git+https://github.com/openai/CLIP.git@main
+matplotlib
+numpy
+opencv-python
+pandas
+Pillow
+requests
+scikit-learn
+seaborn
+torch
+torchvision
+tqdm
