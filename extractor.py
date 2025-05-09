@@ -38,50 +38,50 @@ def get_clip_embeddings(device, model, preprocess, frame_name, img_embedding_nam
 
 
 def main(config):
+    # Load CLIP model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     clip_model, preprocess = clip.load("ViT-B/32", device=device)
 
-    for video_file, ann_file in [
-        ("V1.mpeg", "V1.csv"),
-        ("V2.mpeg", "V2.csv"),
-        ("V3.mpeg", "V3.csv"),
-        ("diving.mp4", "diving.csv"),
-        ("long_jump.mp4", "long_jump.csv"),
-        ("pole_vault.mp4", "pole_vault.csv"),
-        ("tumbling.mp4", "tumbling.csv"),
-    ]:
-        video_name = video_file.split(".")[0]
-        video_file = os.path.join(config.dataset_dir, video_file)
-        ann_file = os.path.join(config.dataset_dir, ann_file)
+    # Video and annotation files
+    video_file = config.video
+    ann_file = config.annotations
+    video_dir, video_name = "/".join(video_file.split("/")[:-1]), video_file.split("/")[-1].split(".")[0]
+    video_framerate = get_fps(video_file)
 
-        annotations = pd.read_csv(ann_file)
-        last_frame = annotations.iloc[-1]["Last frame"]
+    # Load annotations
+    annotations = pd.read_csv(ann_file)
+    last_frame = annotations.iloc[-1]["Last frame"]
 
-        imgs_dir = os.path.join(config.dataset_dir, "imgs", video_name)
-        img_embs_dir = os.path.join(config.dataset_dir, "img_embeddings", video_name)
-        video_framerate = get_fps(video_file)
-        for frame_idx in range(0, last_frame + 1, round(video_framerate / config.frames_per_second)):
-            frame_name = os.path.join(imgs_dir, f"frame{frame_idx:0>5}.png")
-            img_embedding_name = os.path.join(img_embs_dir, f"frame{frame_idx:0>5}.npy")
+    # Create directories for images and embeddings
+    imgs_dir = os.path.join(video_dir, "imgs", video_name)
+    img_embs_dir = os.path.join(video_dir, "img_embeddings", video_name)
+    os.makedirs(imgs_dir, exist_ok=True)
+    os.makedirs(img_embs_dir, exist_ok=True)
 
-            extract_frame(
-                video_name=video_file,
-                frame_idx=frame_idx,
-                frame_name=frame_name,
-            )
+    # Extract frames and compute embeddings
+    for frame_idx in range(0, last_frame + 1, round(video_framerate / config.frames_per_second)):
+        frame_name = os.path.join(imgs_dir, f"frame{frame_idx:0>5}.png")
+        img_embedding_name = os.path.join(img_embs_dir, f"frame{frame_idx:0>5}.npy")
 
-            get_clip_embeddings(
-                device=device,
-                model=clip_model,
-                preprocess=preprocess,
-                frame_name=frame_name,
-                img_embedding_name=img_embedding_name,
-            )
+        extract_frame(
+            video_name=video_file,
+            frame_idx=frame_idx,
+            frame_name=frame_name,
+        )
+
+        get_clip_embeddings(
+            device=device,
+            model=clip_model,
+            preprocess=preprocess,
+            frame_name=frame_name,
+            img_embedding_name=img_embedding_name,
+        )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset-dir", type=str, default="data", help="Dataset directory")
+    parser.add_argument("--video", type=str, default="data/long_jump.mp4", help="Dataset directory")
+    parser.add_argument("--annotations", type=str, default="data/long_jump.csv", help="Dataset directory")
     parser.add_argument("--frames-per-second", type=float, default=29.97, help="Number of frames extracted per second")
 
     config = parser.parse_args()
