@@ -91,21 +91,21 @@ def compute_intermediate_vars(vid_name):
         # Compute separation
         h_mean = None
         # Use the maximum of the KDE curves instead of the means
-        with open(f"results/multi_sentences/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"results/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
             h_kde = pickle.load(f)
-        with open(f"results/multi_sentences/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
+        with open(f"results/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
             nh_kde = pickle.load(f)
         h_mean = h_kde["x_coord"][np.argmax(h_kde["y_coord"])]
         separation = 0.5 - h_mean
 
         # Compute AUC
-        with open(f"results/multi_sentences/{vid_name}/Scores - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"results/{vid_name}/Scores - Pair{pair_num} - H.pkl", "rb") as f:
             h_scores = pickle.load(f)
         hist_values = create_histogram(h_scores)
         auc = compute_histogram_auc(hist_values)
 
         # Retrieve F-scores
-        with open(f"results/multi_sentences/{vid_name}/{vid_name} - log.txt", "r") as f:
+        with open(f"results/{vid_name}/{vid_name} - log.txt", "r") as f:
             log_data = f.read()
         sections = log_data.split("########################################################")
         for idx, section in enumerate(sections):
@@ -119,9 +119,9 @@ def compute_intermediate_vars(vid_name):
                 break
 
         # Compute the dynamic range as a percentage of the cumulative sum
-        with open(f"results/multi_sentences/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"results/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
             h_kde = pickle.load(f)
-        with open(f"results/multi_sentences/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
+        with open(f"results/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
             nh_kde = pickle.load(f)
 
         cum_sum_h_score = list(accumulate(h_kde["y_coord"]))
@@ -162,7 +162,7 @@ def filter_by_area(sport, hist_div=2, num_bins=50):
     mean_areas = {}
 
     for pair_num in range(64):
-        with open(f"results/multi_sentences/{sport}/Mean area - Pair{pair_num}.pkl", "rb") as f:
+        with open(f"results/{sport}/Mean area - Pair{pair_num}.pkl", "rb") as f:
             mean_area = pickle.load(f)
             mean_areas[pair_num] = mean_area
 
@@ -310,8 +310,8 @@ def compute_event_level_metrics(predictions, ground_truth, steps=10):
 
 if __name__ == "__main__":
     # Videos
-    DATASET_DIR = "/mnt/Data/mrt/MATDAT"
-    VIDEOS = ["V1-sports", "V2-sports", "V3-sports", "diving", "long_jump", "pole_vault", "tumbling"]
+    DATASET_DIR = "data"
+    VIDEO = "long_jump"
 
     # Constants
     CONTEXT_WINDOW = 600
@@ -329,93 +329,92 @@ if __name__ == "__main__":
     # Ablation
     NUM_STEPS = 10
 
-    for video in VIDEOS:
-        # Load pairs' data and compute intermediate variables
-        pairs_data = compute_intermediate_vars(video)
+    # Load pairs' data and compute intermediate variables
+    pairs_data = compute_intermediate_vars(VIDEO)
 
-        # Get ground truth and pairs that pass the filters
-        GROUND_TRUTH = get_ground_truth(DATASET_DIR, video)
-        PAIRS, area_filter = get_pairs(video, pairs_data, HIST_DIV)
-        MIN_AREA = area_filter if MIN_AREA == "dynamic" else MIN_AREA
+    # Get ground truth and pairs that pass the filters
+    GROUND_TRUTH = get_ground_truth(DATASET_DIR, VIDEO)
+    PAIRS, area_filter = get_pairs(VIDEO, pairs_data, HIST_DIV)
+    MIN_AREA = area_filter if MIN_AREA == "dynamic" else MIN_AREA
 
-        # Pretty print
-        print(f"\n{'':->50} VIDEO: {video.upper()} {'':->50}")
+    # Pretty print
+    print(f"\n{'':->50} VIDEO: {VIDEO.upper()} {'':->50}")
 
-        # Load highlight score predictions curve
-        for pair in pairs_data.keys():
-            with open(f"results/multi_sentences/{video}/Scores - Pair{pair} - H.pkl", "rb") as file:
-                pairs_data[pair]["h_scores"] = pickle.load(file)
+    # Load highlight score predictions curve
+    for pair in pairs_data.keys():
+        with open(f"results/{VIDEO}/Scores - Pair{pair} - H.pkl", "rb") as file:
+            pairs_data[pair]["h_scores"] = pickle.load(file)
 
-        # Get ground truth and empty predictions
-        ground_truth, _ = createGrounTruth(annotations_file=GROUND_TRUTH)
+    # Get ground truth and empty predictions
+    ground_truth, _ = createGrounTruth(annotations_file=GROUND_TRUTH)
 
-        # Convert ground truth to list
-        ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
+    # Convert ground truth to list
+    ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
 
-        # Compute median highlight score predictions
-        median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in PAIRS], axis=0).tolist()
+    # Compute median highlight score predictions
+    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in PAIRS], axis=0).tolist()
 
-        # Compute the rolling average for the predictions (instant & context)
-        predictions_instant, predictions_context = computeRollingAverages(median_predictions)
+    # Compute the rolling average for the predictions (instant & context)
+    predictions_instant, predictions_context = computeRollingAverages(median_predictions)
 
-        # Compute coarse final predictions (those where instant predictions are above the context)
-        coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+    # Compute coarse final predictions (those where instant predictions are above the context)
+    coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
-        # Closing operation (dilate/erode) of the coarse final predictions
-        refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=CLOSING_KERNEL)
+    # Closing operation (dilate/erode) of the coarse final predictions
+    refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=CLOSING_KERNEL)
 
-        # Compute areas enclosed between the instant and context predictions
-        areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+    # Compute areas enclosed between the instant and context predictions
+    areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
-        # Collect events
-        events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
-        print(f"{Color.RED}----------- Events detected -----------")
-        print(list(events_detected.keys()))
+    # Collect events
+    events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
+    print(f"{Color.RED}----------- Events detected -----------")
+    print(list(events_detected.keys()))
 
-        # Filter events by duration
-        events_filtered_by_duration = filterEvents(events=events_detected, min_duration=MIN_DURATION, min_area=0, reorder_by_relevance=False)
-        print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
-        print(f"{list(events_filtered_by_duration.keys())}{Color.RESET}")
+    # Filter events by duration
+    events_filtered_by_duration = filterEvents(events=events_detected, min_duration=MIN_DURATION, min_area=0, reorder_by_relevance=False)
+    print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
+    print(f"{list(events_filtered_by_duration.keys())}{Color.RESET}")
 
-        # Compute detected events' statistics
-        mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
-        std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
+    # Compute detected events' statistics
+    mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
+    std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
 
-        # Get ablation metrics
-        compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=NUM_STEPS)
-        compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=NUM_STEPS)
+    # Get ablation metrics
+    compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=NUM_STEPS)
+    compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=NUM_STEPS)
 
-        # Filter events by area
-        events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=MIN_AREA, reorder_by_relevance=False)
-        print(f"{Color.GREEN}----------- Events after filtering by area -----------")
-        print(f"{list(events_filtered.keys())}{Color.RESET}")
+    # Filter events by area
+    events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=MIN_AREA, reorder_by_relevance=False)
+    print(f"{Color.GREEN}----------- Events after filtering by area -----------")
+    print(f"{list(events_filtered.keys())}{Color.RESET}")
 
-        # Obtain frame level results
-        recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
-        print(f"{Color.CYAN}\n----------- Frame Level Results (filtering by min area: {MIN_AREA:.2f}) -----------")
-        print(f"RECALL:    {recall*100:.2f}%")
-        print(f"PRECISION: {precision*100:.2f}%")
-        print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
+    # Obtain frame level results
+    recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
+    print(f"{Color.CYAN}\n----------- Frame Level Results (filtering by min area: {MIN_AREA:.2f}) -----------")
+    print(f"RECALL:    {recall*100:.2f}%")
+    print(f"PRECISION: {precision*100:.2f}%")
+    print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
 
-        # Plot predictions against the ground truth
-        plotGroundTruthVSPredictionsTFM(
-            frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
-            ground_truth=ground_truth_list,
-            predictions=median_predictions,
-            predictions_instant=predictions_instant,
-            predictions_context=predictions_context,
-            coarse_final_predictions=coarse_final_predictions,
-            refined_final_predictions=refined_final_predictions,
-            areas=areas,
-            events_filtered=events_filtered,
-            fig_name=f"median_predictions/{video}/Result.png",
-            recall=recall,
-            precision=precision,
-            fscore=fscore,
-            mean_area=mean_area,
-            mean_std=std_area,
-        )
+    # Plot predictions against the ground truth
+    plotGroundTruthVSPredictionsTFM(
+        frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
+        ground_truth=ground_truth_list,
+        predictions=median_predictions,
+        predictions_instant=predictions_instant,
+        predictions_context=predictions_context,
+        coarse_final_predictions=coarse_final_predictions,
+        refined_final_predictions=refined_final_predictions,
+        areas=areas,
+        events_filtered=events_filtered,
+        fig_name=f"{VIDEO}/Final result.png",
+        recall=recall,
+        precision=precision,
+        fscore=fscore,
+        mean_area=mean_area,
+        mean_std=std_area,
+    )
 
-        # Save pairs that were used
-        with open(f"results/median_predictions/{video}/Pairs used.txt", "w") as file:
-            file.write(", ".join(map(str, PAIRS)))
+    # Save pairs that were used
+    with open(f"results/{VIDEO}/Pairs used.txt", "w") as file:
+        file.write(", ".join(map(str, PAIRS)))
