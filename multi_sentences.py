@@ -36,6 +36,7 @@ from utils import (
     createClassEmbeddings,
     collectPredictions,
     groundTruth_Dict2List,
+    predictions_Dict2List,
     closingOperation,
     detectEvents,
     filterEvents,
@@ -43,26 +44,14 @@ from utils import (
     computeFrameLevelResults,
     plotGroundTruthVSPredictionsTFM,
 )
-from dictances import (
-    bhattacharyya,
-    canberra,
-    cosine,
-    euclidean,
-    hamming,
-    jensen_shannon,
-    kullback_leibler,
-    mae,
-    minkowsky,
-    mse,
-    pearson,
-)
 
 
 class Config:
-    # Change "video", "highlight_sentences" and "not_highlight_sentences" to test different videos and sentences
+    # Main parameters
     root_dir = "data"
-    video_name = "V1"
+    video_name = "long_jump"
     results_folder = f"results/{video_name}"
+    os.makedirs(results_folder, exist_ok=True)
 
     context_window = 500
     instant_window = int(context_window / 10)
@@ -71,26 +60,26 @@ class Config:
     min_area = 15
 
     # Tricking
-    highlight_sentences = [
-        "A highlight",
-        "A person doing something interesting",
-        "Someone practicing dynamic movements",
-        "Someone is performing martial arts tricking",
-        "A skilled athlete executing kicks and spins",
-        "A person is performing some type of acrobatics",
-        "A person is clearly performing some type of acrobatics in a gym",
-        "Tricker performing a pass including flips, transitions and kicks",
-    ]
-    not_highlight_sentences = [
-        "Not a highlight",
-        "A gym with people present",
-        "A group of people chatting and relaxing",
-        "Athletes preparing for their practice session",
-        "A group of people in a gym, ready to perform acrobatics but not at the moment",
-        "No one is currently performing acrobatics, people enjoy a moment of relaxed interaction",
-        "Trickers form a circle, chatting and enjoying a break, with no one currently performing acrobatics",
-        "Trickers relaxed in a gym, talking, walking, waiting for their turn to perform flips and tricks",
-    ]
+    # highlight_sentences = [
+    #     "A highlight",
+    #     "A person doing something interesting",
+    #     "Someone practicing dynamic movements",
+    #     "Someone is performing martial arts tricking",
+    #     "A skilled athlete executing kicks and spins",
+    #     "A person is performing some type of acrobatics",
+    #     "A person is clearly performing some type of acrobatics in a gym",
+    #     "Tricker performing a pass including flips, transitions and kicks",
+    # ]
+    # not_highlight_sentences = [
+    #     "Not a highlight",
+    #     "A gym with people present",
+    #     "A group of people chatting and relaxing",
+    #     "Athletes preparing for their practice session",
+    #     "A group of people in a gym, ready to perform acrobatics but not at the moment",
+    #     "No one is currently performing acrobatics, people enjoy a moment of relaxed interaction",
+    #     "Trickers form a circle, chatting and enjoying a break, with no one currently performing acrobatics",
+    #     "Trickers relaxed in a gym, talking, walking, waiting for their turn to perform flips and tricks",
+    # ]
 
     # Diving
     # highlight_sentences = [
@@ -115,26 +104,26 @@ class Config:
     # ]
 
     # Long jump
-    # highlight_sentences = [
-    #     "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
-    #     "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
-    #     "A person accelerating down the track, generating momentum for an explosive jump",
-    #     "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
-    #     "A competitor demonstrating strength and precision in a long jump attempt",
-    #     "A long jumper executing a perfect flight phase, reaching their peak height before descent",
-    #     "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
-    #     "Athlete running, jumping into the air and landing in the sand pit",
-    # ]
-    # not_highlight_sentences = [
-    #     "A long jumper adjusting their starting position on the runway",
-    #     "A person discussing jump techniques with a coach",
-    #     "An athlete waiting for their turn while observing competitors",
-    #     "A group of athletes standing near the sand pit, preparing for their jumps",
-    #     "A long jumper walking back after a completed attempt",
-    #     "A judge measuring the distance of a jump while athletes watch",
-    #     "A competitor stretching and warming up before their jump",
-    #     "Athlete relaxed, greeting judges, celebrating",
-    # ]
+    highlight_sentences = [
+        "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
+        "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
+        "A person accelerating down the track, generating momentum for an explosive jump",
+        "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
+        "A competitor demonstrating strength and precision in a long jump attempt",
+        "A long jumper executing a perfect flight phase, reaching their peak height before descent",
+        "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
+        "Athlete running, jumping into the air and landing in the sand pit",
+    ]
+    not_highlight_sentences = [
+        "A long jumper adjusting their starting position on the runway",
+        "A person discussing jump techniques with a coach",
+        "An athlete waiting for their turn while observing competitors",
+        "A group of athletes standing near the sand pit, preparing for their jumps",
+        "A long jumper walking back after a completed attempt",
+        "A judge measuring the distance of a jump while athletes watch",
+        "A competitor stretching and warming up before their jump",
+        "Athlete relaxed, greeting judges, celebrating",
+    ]
 
     # Pole vault
     # highlight_sentences = [
@@ -182,60 +171,11 @@ class Config:
 
     sentences = highlight_sentences + not_highlight_sentences
 
-    mode = "binary"  # "max", "avg" or "binary"
+    # Plotting parameters
     hist_sharey = True  # Share y axis among histplots when drawing multiple in a single figure
     hist_scale_y = True  # "True" -> maximum y-axis set dinamycally. "False" -> set to the number of video frames
-
     draw_individual_plots = True
     frames_to_plot = [0, 7500]
-
-
-def predictions_Dict2List_multiple(predictions_dict, mode="max"):
-    assert mode in ["max", "avg", "binary"], f'Mode has to be one of ["max", "avg", "binary"].'
-
-    sentences_score_history = {x: [] for x in range(0, len(Config.sentences))} if mode != "binary" else {x: [] for x in range(0, 2)}
-    predictions_list = []
-
-    for frame_num, val in predictions_dict.items():
-        # Save the score history for each sentence to later draw their gaussians
-        for sentence, score in enumerate(val[0]):
-            sentences_score_history[sentence].append(score)
-
-        if mode == "max":
-            # Obtain the max score among the H and NH sentences
-            h_pred = max(val[0][: len(Config.highlight_sentences)])
-            nh_pred = max(val[0][len(Config.highlight_sentences) :])
-
-            # Normalize values
-            h_pred_norm = h_pred / (h_pred + nh_pred)
-            nh_pred_norm = nh_pred / (h_pred + nh_pred)
-
-            # Prediction is the normalized positive prediction
-            prediction = h_pred_norm
-
-        elif mode == "avg":
-            # Obtain the average score among the H and NH sentences
-            h_pred = np.average(val[0][: len(Config.highlight_sentences)])
-            nh_pred = np.average(val[0][len(Config.highlight_sentences) :])
-
-            # Normalize values
-            h_pred_norm = h_pred / (h_pred + nh_pred)
-            nh_pred_norm = nh_pred / (h_pred + nh_pred)
-
-            # Prediction is the normalized positive prediction
-            prediction = h_pred_norm
-
-        elif mode == "binary":
-            # Obtain the H and NH sentences' scores
-            h_pred = val[0][0]
-            nh_pred = val[0][1]
-
-            # Prediction is the positive prediction
-            prediction = h_pred
-
-        predictions_list.append(prediction)
-
-    return predictions_list, sentences_score_history
 
 
 def computeRollingAverages(predictions):
@@ -300,7 +240,7 @@ def main():
 
             # Convert ground truth and predictions to lists
             ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
-            predictions_list, sentences_score_hist = predictions_Dict2List_multiple(predictions_dict=predictions, mode=Config.mode)
+            predictions_list, sentences_score_hist = predictions_Dict2List(predictions_dict=predictions)
 
             # Compute the rolling average for the predictions (instant & context)
             predictions_instant, predictions_context = computeRollingAverages(predictions_list)
@@ -334,10 +274,8 @@ def main():
             # Compute detected events' statistics
             mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
             std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
-            # possible_new_filter = mean_area - 3 * np.max([std_area, 1])
 
             # Save the mean event area
-            print(f"Pair {pair_num} -> Mean area: {mean_area:.2f}")
             with open(f"{Config.results_folder}/Mean area - Pair{pair_num}.pkl", "wb") as f:
                 pickle.dump(mean_area, f)
 
@@ -397,9 +335,6 @@ def main():
                 ax = distplot.axes[0, 0]
                 line = ax.lines[0]
                 kde_x, kde_y = line.get_data()
-                # In case we wanted to plot it:
-                # ax.plot(kde_x, kde_y, "r."); plt.show()
-                # plt.savefig("results/test.png")
 
                 plt.xlabel("Score")
                 plt.ylabel("Count")
@@ -434,8 +369,6 @@ def main():
 
             try:
                 crossing_x, crossing_y = compute_crossing_point(curve1, curve2)
-                print(f"- Pair {pair_num: >2} -> Crossing point coordinates: ({crossing_x:.3f}, {crossing_y:.3f})")
-
                 with open(f"{Config.results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
                     pickle.dump((crossing_x, crossing_y), f)
 
@@ -481,67 +414,7 @@ def main():
             with open(f"{Config.results_folder}/Scores - Pair{pair_num} - NH.pkl", "wb") as f:
                 pickle.dump(sentences_score_hist[1], f)
 
-            # Normalize scores by dividing by the total sum of scores (required for the later dictances metrics)
-            sentences_score_hist_H_norm = [score / sum(sentences_score_hist[0]) for score in sentences_score_hist[0]]
-            sentences_score_hist_NH_norm = [score / sum(sentences_score_hist[1]) for score in sentences_score_hist[1]]
-
-            # Convert normalized lists to dictionaries (required for the later dictances metrics)
-            sentences_score_hist_H_dict = {f"frame_{frame_num}": score for frame_num, score in enumerate(sentences_score_hist_H_norm)}
-            sentences_score_hist_NH_dict = {f"frame_{frame_num}": score for frame_num, score in enumerate(sentences_score_hist_NH_norm)}
-
-            # Obtain metrics regarding the between both H and NH distributions
-            bhattacharyya_dist = bhattacharyya(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            canberra_dist = canberra(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            cosine_dist = cosine(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            euclidean_dist = euclidean(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            hamming_dist = hamming(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            jensen_shannon_dist = jensen_shannon(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            kullback_leibler_dist = kullback_leibler(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            mae_dist = mae(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            minkowsky_dist = minkowsky(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            mse_dist = mse(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-            pearson_dist = pearson(sentences_score_hist_H_dict, sentences_score_hist_NH_dict)
-
-            print("\n------------------ Metrics ----------------")
-            print(f"- bhattacharyya_dist:     {bhattacharyya_dist:.3f}")
-            print(f"- canberra_dist:          {canberra_dist:.3f}")
-            print(f"- cosine_dist:            {cosine_dist:.3f}")
-            print(f"- euclidean_dist:         {euclidean_dist:.3f}")
-            print(f"- hamming_dist:           {hamming_dist:.3f}")
-            print(f"- jensen_shannon_dist:    {jensen_shannon_dist:.3f}")
-            print(f"- kullback_leibler_dist:  {kullback_leibler_dist:.3f}")
-            print(f"- mae_dist:               {mae_dist:.3f}")
-            print(f"- minkowsky_dist:         {minkowsky_dist:.3f}")
-            print(f"- mse_dist:               {mse_dist:.3f}")
-            print(f"- pearson_dist:           {pearson_dist:.3f}\n")
-
-            # Save a log of the metrics
-            with open(f"{Config.results_folder}/{Config.video_name} - metrics.txt", "a") as f:
-                f.write(f"######################################################## Pair {pair_num} ########################################################\n")
-
-                f.write(f"* Highlight sentence:       {h_sentence}\n")
-                f.write(f"* Not a highlight sentence: {nh_sentence}\n\n")
-
-                f.write("- Highlight statistics:\n")
-                f.write(f"\t- Mean: {np.mean(sentences_score_hist[0]):.5f}\n")
-                f.write(f"\t- Std:  {np.std(sentences_score_hist[0]):.5f}\n")
-                f.write("- Not a highlight statistics:\n")
-                f.write(f"\t- Mean: {np.mean(sentences_score_hist[1]):.5f}\n")
-                f.write(f"\t- Std:  {np.std(sentences_score_hist[1]):.5f}\n\n")
-
-                f.write("- Distances:\n")
-                f.write(f"\t- bhattacharyya_dist:     {bhattacharyya_dist:.3f}\n")
-                f.write(f"\t- canberra_dist:          {canberra_dist:.3f}\n")
-                f.write(f"\t- cosine_dist:            {cosine_dist:.3f}\n")
-                f.write(f"\t- euclidean_dist:         {euclidean_dist:.3f}\n")
-                f.write(f"\t- hamming_dist:           {hamming_dist:.3f}\n")
-                f.write(f"\t- jensen_shannon_dist:    {jensen_shannon_dist:.3f}\n")
-                f.write(f"\t- kullback_leibler_dist:  {kullback_leibler_dist:.3f}\n")
-                f.write(f"\t- mae_dist:               {mae_dist:.3f}\n")
-                f.write(f"\t- minkowsky_dist:         {minkowsky_dist:.3f}\n")
-                f.write(f"\t- mse_dist:               {mse_dist:.3f}\n")
-                f.write(f"\t- pearson_dist:           {pearson_dist:.3f}\n")
-
+            # Move on to the next pair
             pair_num += 1
 
 

@@ -120,21 +120,25 @@ def groundTruth_Dict2List(ground_truth_dict, skip_uncertainty=True):
     return ground_truth_list
 
 
-def predictions_Dict2List(ground_truth_dict, predictions_dict, skip_uncertainty=True):
+def predictions_Dict2List(predictions_dict):
+    sentences_score_history = {x: [] for x in range(0, 2)}
     predictions_list = []
 
     for frame_num, val in predictions_dict.items():
-        positive_prediction = val[0][1]
+        # Save the score history for each sentence to later draw their gaussians
+        for sentence, score in enumerate(val[0]):
+            sentences_score_history[sentence].append(score)
 
-        if ground_truth_dict[frame_num] == "Uncertainty":
-            if skip_uncertainty:
-                continue
-            else:
-                predictions_list.append(positive_prediction)
-        else:
-            predictions_list.append(positive_prediction)
+        # Obtain the H and NH sentences' scores
+        h_pred = val[0][0]
+        nh_pred = val[0][1]
 
-    return predictions_list
+        # Prediction is the positive prediction
+        prediction = h_pred
+
+        predictions_list.append(prediction)
+
+    return predictions_list, sentences_score_history
 
 
 def plotGroundTruthVSPredictions(
@@ -213,6 +217,10 @@ def plotGroundTruthVSPredictionsTFM(
 ):
     # Check if lists have the same length
     assert len(ground_truth) == len(predictions), "Lists must have the same length"
+
+    # Limit the number of frames to plot if they surpass the length of the video
+    if frames_to_plot[-1] > len(ground_truth):
+        frames_to_plot[-1] = len(ground_truth)
 
     # Create a figure with 2 subplots
     fig, axs = plt.subplots(7, 1, figsize=(8, 10), sharex=True)
@@ -319,6 +327,7 @@ def plotGroundTruthVSPredictionsTFM(
 
     # Save the plot
     plt.savefig(f"results/{fig_name}")
+    plt.close()
 
 
 def closingOperation(coarse_predictions, kernel_size=61):
