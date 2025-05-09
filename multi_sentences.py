@@ -27,7 +27,6 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 import seaborn as sns
 import pandas as pd
 from utils import (
@@ -37,12 +36,14 @@ from utils import (
     collectPredictions,
     groundTruth_Dict2List,
     predictions_Dict2List,
+    computeRollingAverages,
     closingOperation,
     detectEvents,
     filterEvents,
     compute_crossing_point,
     computeFrameLevelResults,
     plotGroundTruthVSPredictionsTFM,
+    stitch_images,
 )
 
 
@@ -178,42 +179,6 @@ class Config:
     frames_to_plot = [0, 7500]
 
 
-def computeRollingAverages(predictions):
-    predictions_instant = [
-        np.mean(predictions[max(0, i - int(Config.instant_window / 2) - 1) : min(len(predictions) - 1, i + int(Config.instant_window / 2))]) for i in range(len(predictions))
-    ]
-    predictions_context = [
-        np.mean(predictions[max(0, i - int(Config.context_window / 2) - 1) : min(len(predictions) - 1, i + int(Config.context_window / 2))]) for i in range(len(predictions))
-    ]
-
-    return predictions_instant, predictions_context
-
-
-def stitch_images(pair_num, h_idx, nh_idx):
-    # Open the images
-    image1 = Image.open(f"{Config.results_folder}/{Config.video_name} - histogram - H - tmp.png")
-    image2 = Image.open(f"{Config.results_folder}/{Config.video_name} - histogram - NH - tmp.png")
-    image3 = Image.open(f"{Config.results_folder}/{Config.video_name} - binary - tmp.png")
-
-    # Create a new image with the dimensions required
-    final_image = Image.new("RGB", (image1.width + image3.width, image3.height))
-
-    # Paste the first two images onto the left side of the final image
-    final_image.paste(image1, (0, 0))
-    final_image.paste(image2, (0, image1.height))
-
-    # Paste the resized third image onto the right side of the final image
-    final_image.paste(image3, (image1.width, 0))
-
-    # Save the final image
-    final_image.save(f"{Config.results_folder}/Pair{pair_num} - H{h_idx} NH{nh_idx}.png")
-
-    # Remove temporal images
-    os.remove(f"{Config.results_folder}/{Config.video_name} - histogram - H - tmp.png")
-    os.remove(f"{Config.results_folder}/{Config.video_name} - histogram - NH - tmp.png")
-    os.remove(f"{Config.results_folder}/{Config.video_name} - binary - tmp.png")
-
-
 def main():
     # Get ground truth and empty predictions
     ground_truth, predictions = createGrounTruth(annotations_file=os.path.join(Config.root_dir, f"{Config.video_name}.csv"))
@@ -243,7 +208,7 @@ def main():
             predictions_list, sentences_score_hist = predictions_Dict2List(predictions_dict=predictions)
 
             # Compute the rolling average for the predictions (instant & context)
-            predictions_instant, predictions_context = computeRollingAverages(predictions_list)
+            predictions_instant, predictions_context = computeRollingAverages(predictions_list, Config.instant_window, Config.context_window)
 
             # Compute coarse final predictions (those where instant predictions are above the context)
             coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
@@ -395,7 +360,7 @@ def main():
             plt.close()
 
             # Stitch the histograms and predictions together
-            stitch_images(pair_num=pair_num, h_idx=h_sent_idx, nh_idx=nh_sent_idx)
+            stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=Config.results_folder, video_name=Config.video_name)
 
             # Save a log of the experiments
             with open(f"{Config.results_folder}/{Config.video_name} - log.txt", "a") as f:

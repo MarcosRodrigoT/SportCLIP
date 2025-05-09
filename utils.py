@@ -19,6 +19,7 @@ import pandas as pd
 import torch
 import clip
 import numpy as np
+from PIL import Image
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from matplotlib.lines import Line2D
@@ -139,6 +140,13 @@ def predictions_Dict2List(predictions_dict):
         predictions_list.append(prediction)
 
     return predictions_list, sentences_score_history
+
+
+def computeRollingAverages(predictions, instant_window, context_window):
+    predictions_instant = [np.mean(predictions[max(0, i - int(instant_window / 2) - 1) : min(len(predictions) - 1, i + int(instant_window / 2))]) for i in range(len(predictions))]
+    predictions_context = [np.mean(predictions[max(0, i - int(context_window / 2) - 1) : min(len(predictions) - 1, i + int(context_window / 2))]) for i in range(len(predictions))]
+
+    return predictions_instant, predictions_context
 
 
 def plotGroundTruthVSPredictions(
@@ -328,6 +336,31 @@ def plotGroundTruthVSPredictionsTFM(
     # Save the plot
     plt.savefig(f"results/{fig_name}")
     plt.close()
+
+
+def stitch_images(pair_num, highlight_idx, non_highlight_idx, results_folder, video_name):
+    # Open the images
+    image1 = Image.open(f"{results_folder}/{video_name} - histogram - H - tmp.png")
+    image2 = Image.open(f"{results_folder}/{video_name} - histogram - NH - tmp.png")
+    image3 = Image.open(f"{results_folder}/{video_name} - binary - tmp.png")
+
+    # Create a new image with the dimensions required
+    final_image = Image.new("RGB", (image1.width + image3.width, image3.height))
+
+    # Paste the first two images onto the left side of the final image
+    final_image.paste(image1, (0, 0))
+    final_image.paste(image2, (0, image1.height))
+
+    # Paste the resized third image onto the right side of the final image
+    final_image.paste(image3, (image1.width, 0))
+
+    # Save the final image
+    final_image.save(f"{results_folder}/Pair{pair_num} - H{highlight_idx} NH{non_highlight_idx}.png")
+
+    # Remove temporal images
+    os.remove(f"{results_folder}/{video_name} - histogram - H - tmp.png")
+    os.remove(f"{results_folder}/{video_name} - histogram - NH - tmp.png")
+    os.remove(f"{results_folder}/{video_name} - binary - tmp.png")
 
 
 def closingOperation(coarse_predictions, kernel_size=61):
