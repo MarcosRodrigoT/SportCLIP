@@ -40,12 +40,14 @@ from utils import (
     closingOperation,
     detectEvents,
     filterEvents,
-    compute_crossing_point,
     computeFrameLevelResults,
     plotGroundTruthVSPredictionsTFM,
     stitch_images,
     print_events,
     print_frame_level_results,
+    draw_histograms,
+    compute_crossing_points,
+    save_logs,
 )
 
 
@@ -267,92 +269,16 @@ def main():
                 )
 
             # Draw histograms as individual distribution plots with KDE
-            for sentence in sentences_score_hist.keys():
-                df = pd.DataFrame(sentences_score_hist[sentence], columns=["score"])
-                distplot = sns.displot(df, bins=np.linspace(0, 1, 50), kde=True, legend=False)
-
-                # Retrieve the KDE data from the plot
-                ax = distplot.axes[0, 0]
-                line = ax.lines[0]
-                kde_x, kde_y = line.get_data()
-
-                plt.xlabel("Score")
-                plt.ylabel("Count")
-                plt.xlim(0, 1)
-                if not Config.hist_scale_y:
-                    plt.ylim(0, len(sentences_score_hist[sentence]))
-
-                if sentence == 0:
-                    plt.title(f"H sentence")
-                    plt.tight_layout()
-                    plt.savefig(f"{Config.results_folder}/{Config.video_name} - histogram - H - tmp.png")
-                    plt.close()
-
-                    # Save the KDE data
-                    with open(f"{Config.results_folder}/KDE - Pair{pair_num} - H.pkl", "wb") as f:
-                        pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
-                else:
-                    plt.title(f"NH sentence")
-                    plt.tight_layout()
-                    plt.savefig(f"{Config.results_folder}/{Config.video_name} - histogram - NH - tmp.png")
-                    plt.close()
-
-                    # Save the KDE data
-                    with open(f"{Config.results_folder}/KDE - Pair{pair_num} - NH.pkl", "wb") as f:
-                        pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
+            draw_histograms(sentences_score_hist, pair_num, Config.hist_scale_y, Config.results_folder, Config.video_name)
 
             # Compute the crossing point between the two distributions
-            with open(f"{Config.results_folder}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
-                curve1 = pickle.load(f)
-            with open(f"{Config.results_folder}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
-                curve2 = pickle.load(f)
-
-            try:
-                crossing_x, crossing_y = compute_crossing_point(curve1, curve2)
-                with open(f"{Config.results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
-                    pickle.dump((crossing_x, crossing_y), f)
-
-            except ValueError as e:
-                print(f"- Pair {pair_num: >2} -> These 2 curves do not cross.")
-                crossing_x, crossing_y = 0.5, 0.5
-
-                with open(f"{Config.results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
-                    pickle.dump("These 2 curves do not cross", f)
-
-            plt.figure(figsize=(10, 6))
-            plt.plot(curve1["x_coord"], curve1["y_coord"], "g.", label="Highlight")
-            plt.plot(curve2["x_coord"], curve2["y_coord"], "r.", label="Not a highlight")
-            plt.plot(np.array(crossing_x), np.array(crossing_y), c="black", linestyle="", marker=".", markersize=10, label="Crossing point")
-
-            plt.title("Actual KDE Curves")
-            plt.xlabel("X")
-            plt.ylabel("Y")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.xlim(0, 1)
-            plt.savefig(f"{Config.results_folder}/act KDE - Pair{pair_num}.png")
-            plt.close()
+            compute_crossing_points(pair_num, Config.results_folder)
 
             # Stitch the histograms and predictions together
             stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=Config.results_folder, video_name=Config.video_name)
 
             # Save a log of the experiments
-            with open(f"{Config.results_folder}/{Config.video_name} - log.txt", "a") as f:
-                f.write(f"######################################################## Pair {pair_num} ########################################################\n")
-
-                f.write(f"* Highlight sentence:       {h_sentence}\n")
-                f.write(f"* Not a highlight sentence: {nh_sentence}\n")
-
-                f.write(f"\t- Recall: {recall * 100:.2f}%\n")
-                f.write(f"\t- Precision: {precision * 100:.2f}%\n")
-                f.write(f"\t- Fscore: {fscore * 100:.2f}%\n")
-
-            # Save scores' lists
-            with open(f"{Config.results_folder}/Scores - Pair{pair_num} - H.pkl", "wb") as f:
-                pickle.dump(sentences_score_hist[0], f)
-            with open(f"{Config.results_folder}/Scores - Pair{pair_num} - NH.pkl", "wb") as f:
-                pickle.dump(sentences_score_hist[1], f)
+            save_logs(pair_num, h_sentence, nh_sentence, recall, precision, fscore, sentences_score_hist, Config.results_folder, Config.video_name)
 
             # Move on to the next pair
             pair_num += 1

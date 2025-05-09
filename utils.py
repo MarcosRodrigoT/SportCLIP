@@ -18,8 +18,10 @@ import os
 import pandas as pd
 import torch
 import clip
+import pickle
 import numpy as np
 from PIL import Image
+import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from matplotlib.lines import Line2D
@@ -675,3 +677,91 @@ def print_frame_level_results(recall, precision, fscore, color):
     print(f"PRECISION: {precision*100:.2f}%")
     print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
     print(f"{Color.RESET}")
+
+
+def draw_histograms(sentences_score_hist, pair_num, hist_scale_y, results_folder, video_name):
+    for sentence in sentences_score_hist.keys():
+        df = pd.DataFrame(sentences_score_hist[sentence], columns=["score"])
+        distplot = sns.displot(df, bins=np.linspace(0, 1, 50), kde=True, legend=False)
+
+        # Retrieve the KDE data from the plot
+        ax = distplot.axes[0, 0]
+        line = ax.lines[0]
+        kde_x, kde_y = line.get_data()
+
+        plt.xlabel("Score")
+        plt.ylabel("Count")
+        plt.xlim(0, 1)
+        if not hist_scale_y:
+            plt.ylim(0, len(sentences_score_hist[sentence]))
+
+        if sentence == 0:
+            plt.title(f"H sentence")
+            plt.tight_layout()
+            plt.savefig(f"{results_folder}/{video_name} - histogram - H - tmp.png")
+            plt.close()
+
+            # Save the KDE data
+            with open(f"{results_folder}/KDE - Pair{pair_num} - H.pkl", "wb") as f:
+                pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
+        else:
+            plt.title(f"NH sentence")
+            plt.tight_layout()
+            plt.savefig(f"{results_folder}/{video_name} - histogram - NH - tmp.png")
+            plt.close()
+
+            # Save the KDE data
+            with open(f"{results_folder}/KDE - Pair{pair_num} - NH.pkl", "wb") as f:
+                pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
+
+
+def compute_crossing_points(pair_num, results_folder):
+    with open(f"{results_folder}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
+        curve1 = pickle.load(f)
+    with open(f"{results_folder}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
+        curve2 = pickle.load(f)
+
+    try:
+        crossing_x, crossing_y = compute_crossing_point(curve1, curve2)
+        with open(f"{results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
+            pickle.dump((crossing_x, crossing_y), f)
+
+    except ValueError as e:
+        print(f"- Pair {pair_num: >2} -> These 2 curves do not cross.")
+        crossing_x, crossing_y = 0.5, 0.5
+
+        with open(f"{results_folder}/crossing KDE - Pair{pair_num}.pkl", "wb") as f:
+            pickle.dump("These 2 curves do not cross", f)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(curve1["x_coord"], curve1["y_coord"], "g.", label="Highlight")
+    plt.plot(curve2["x_coord"], curve2["y_coord"], "r.", label="Not a highlight")
+    plt.plot(np.array(crossing_x), np.array(crossing_y), c="black", linestyle="", marker=".", markersize=10, label="Crossing point")
+
+    plt.title("Actual KDE Curves")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.xlim(0, 1)
+    plt.savefig(f"{results_folder}/act KDE - Pair{pair_num}.png")
+    plt.close()
+
+
+def save_logs(pair_num, h_sentence, nh_sentence, recall, precision, fscore, sentences_score_hist, results_folder, video_name):
+    with open(f"{results_folder}/{video_name} - log.txt", "a") as f:
+        f.write(f"######################################################## Pair {pair_num} ########################################################\n")
+
+        f.write(f"* Highlight sentence:       {h_sentence}\n")
+        f.write(f"* Not a highlight sentence: {nh_sentence}\n")
+
+        f.write(f"\t- Recall: {recall * 100:.2f}%\n")
+        f.write(f"\t- Precision: {precision * 100:.2f}%\n")
+        f.write(f"\t- Fscore: {fscore * 100:.2f}%\n")
+
+    # Save scores' lists
+    with open(f"{results_folder}/Scores - Pair{pair_num} - H.pkl", "wb") as f:
+        pickle.dump(sentences_score_hist[0], f)
+    with open(f"{results_folder}/Scores - Pair{pair_num} - NH.pkl", "wb") as f:
+        pickle.dump(sentences_score_hist[1], f)
