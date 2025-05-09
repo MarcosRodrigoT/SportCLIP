@@ -89,12 +89,97 @@ All default hyper‑parameters are hard‑coded in the corresponding scripts and
 
 ## Configuration
 
-Most hyper‑parameters live at the top of each script. &#x20;
+### Dataset layout
 
-* **Dataset layout**  Place each `*.mp4` next to its `*.csv` annotation in the `data/` folder.
-  The CSV must contain at least the columns `First frame`, `Last frame` and `Event type`.
-* **GPU vs CPU**  All scripts will automatically switch to CUDA if available.
-* **Custom prompts**  Edit the `highlight_sentences` and `not_highlight_sentences` lists in `multi_sentences.py`.
+Place all **videos** and their **ground‑truth annotation files** in the `data/` folder:
+
+* Videos: `*.mp4`, `*.mpeg`, `*.avi`, …
+* CSV annotations: `*.csv` (must include the columns `First frame`, `Last frame`, `Event type`).
+
+---
+
+### Trying out new sentences or sports
+
+Edit the **`Config`** class in **`multi_sentences.py`** to point to a different video or to craft sport‑specific prompts. Use the template below as a guide and adapt the lists of `highlight_sentences` and `not_highlight_sentences` to your domain:
+
+```python
+class Config:
+    # Main parameters
+    root_dir = "data"
+    video_name = "long_jump"
+    results_folder = f"results/{video_name}"
+    os.makedirs(results_folder, exist_ok=True)
+
+    context_window = 500
+    instant_window = int(context_window / 10)
+    closing_kernel = int(context_window / 10 + 1)
+    min_duration = 15
+    min_area = 15
+
+    # Highlight and non‑highlight sentences
+    highlight_sentences = [
+        "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
+        "A long jumper executing a well‑timed takeoff, soaring through the air before landing in the sand pit",
+        "A person accelerating down the track, generating momentum for an explosive jump",
+        "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
+        "A competitor demonstrating strength and precision in a long jump attempt",
+        "A long jumper executing a perfect flight phase, reaching their peak height before descent",
+        "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
+        "Athlete running, jumping into the air and landing in the sand pit",
+    ]
+    not_highlight_sentences = [
+        "A long jumper adjusting their starting position on the runway",
+        "A person discussing jump techniques with a coach",
+        "An athlete waiting for their turn while observing competitors",
+        "A group of athletes standing near the sand pit, preparing for their jumps",
+        "A long jumper walking back after a completed attempt",
+        "A judge measuring the distance of a jump while athletes watch",
+        "A competitor stretching and warming up before their jump",
+        "Athlete relaxed, greeting judges, celebrating",
+    ]
+
+    sentences = highlight_sentences + not_highlight_sentences
+
+    # Plotting parameters
+    hist_sharey = True            # Share y axis across individual histograms
+    hist_scale_y = True           # Dynamic y‑axis scaling
+    draw_individual_plots = True
+    frames_to_plot = [0, 7500]
+```
+
+---
+
+### Generating the final highlight reel
+
+Before executing **`entire_pipeline.py`**, adjust the top‑level constants so they match your dataset and desired hyper‑parameters:
+
+```python
+if __name__ == "__main__":
+    # Videos
+    DATASET_DIR = "data"
+    VIDEO = "long_jump"
+    GROUND_TRUTH = f"{DATASET_DIR}/{VIDEO}.csv"
+
+    # Constants
+    CONTEXT_WINDOW = 600
+    INSTANT_WINDOW = int(CONTEXT_WINDOW / 10)
+    CLOSING_KERNEL = int(CONTEXT_WINDOW / 10 + 1)
+    MIN_DURATION = 15
+    MIN_AREA = "dynamic"  # "dynamic" or numeric (e.g., 15)
+
+    # Filters
+    FILTER_SEPARATION = 0.1
+    FILTER_RANGE = 0.4
+    FILTER_AUC = 0.4
+    HIST_DIV = 2
+
+    # Ablation
+    NUM_STEPS = 10
+```
+
+With these two edits you can quickly switch to new sports, experiment with prompt phrasing, or retune post‑processing thresholds.
+
+* **GPU vs CPU**  Every script automatically uses CUDA if available; otherwise it will fall back to CPU.
 
 ---
 
