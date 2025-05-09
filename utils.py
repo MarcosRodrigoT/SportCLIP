@@ -1,19 +1,3 @@
-"""
-Utility functions for highlight-detection experiments.
-
-Key features
-------------
-* Build frame-level ground-truth maps from an annotation CSV.
-* Encode text prompts with CLIP and score pre-computed frame embeddings.
-* Convert predictions/ground truth to lists for analysis.
-* Smooth scores, apply simple morphology, and group consecutive positives into “events”.
-* Compute frame-level recall/precision/F-score, full ROC curves, and many threshold-swept minor metrics.
-* Helper plots: timelines, ROC, per-threshold metrics.
-
-Designed to be imported by higher-level scripts rather than run standalone.
-"""
-
-
 import os
 import pandas as pd
 import torch

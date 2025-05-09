@@ -1,13 +1,3 @@
-"""
-Extracts evenly-spaced frames from several hard-coded sports videos, runs each frame through CLIP (ViT-B/32) to get a 512-D image vector, and saves:
-
-    imgs/<video>/frameXXXXX.png
-    img_embeddings/<video>/frameXXXXX.npy
-
-Use --dataset-dir to point at the folder containing the videos/CSVs and --frames-per-second to control how densely frames are sampled.
-"""
-
-
 import os
 import argparse
 import subprocess

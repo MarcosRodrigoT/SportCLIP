@@ -1,28 +1,3 @@
-"""
-Runs a “sentence-vs-sentence” experiment to see which CLIP text prompt best separates *highlight* moments from *non-highlight* moments in one video.
-
-High-level flow
----------------
-1. **Config** - pick a video (e.g. “V1”) and two lists of prompts: `highlight_sentences` (H) and `not_highlight_sentences` (NH).
-
-2. **For every H-to-NH pair**  
-   • Embed the two sentences with CLIP.  
-   • For every frame, score similarity between the frame embedding (pre-computed elsewhere) and each sentence.  
-   • Collapse the two scores into a single “highlight probability” (max/avg/binary).  
-   • Smooth scores with short/long rolling windows and keep spikes where the short window rises above the long one.  
-   • Post-process with a morphological closing and turn the result into *events* (contiguous highlight segments).
-
-3. **Evaluation & visualisation**  
-   • Compare detected events against ground-truth CSV, print recall / precision / F-score.  
-   • Plot timelines, score histograms, KDEs, save stitched PNGs.  
-   • Compute many distance metrics (Bhattacharyya, JS, KL, etc.) between the H and NH score distributions and save them to disk.
-
-4. **Outputs** land in `results/` as logs, figures, pickled statistics and metric files - one set per sentence pair.
-
-Run with `python multi_sentences.py` after editing the `Config` class.  All heavy lifting lives in `utils.py`; this script is mainly orchestration and reporting.
-"""
-
-
 import os
 import pickle
 import numpy as np
