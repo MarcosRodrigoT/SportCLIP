@@ -38,7 +38,7 @@ from utils import (
     detectEvents,
     filterEvents,
     computeFrameLevelResults,
-    plotGroundTruthVSPredictionsTFM,
+    plotGroundTruthVSPredictions,
     stitch_images,
     print_events,
     print_frame_level_results,

@@ -152,63 +152,6 @@ def computeRollingAverages(predictions, instant_window, context_window):
 
 
 def plotGroundTruthVSPredictions(
-    ground_truth,
-    predictions,
-    fig_name,
-    optimal_threshold=None,
-    predictions_instant=None,
-    predictions_context=None,
-    optimal_threshold_instant=None,
-):
-    # Check if lists have the same length
-    assert len(ground_truth) == len(predictions), "Lists must have the same length"
-
-    # Create a figure with 2 subplots
-    fig, axs = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-
-    # Plot ground truth
-    colors = {0: "red", 1: "green"}
-    for frame_num, gt_value in enumerate(ground_truth):
-        axs[0].axvline(frame_num, color=colors[gt_value], ymin=0, ymax=0.5)
-    axs[0].set_ylabel("Ground Truth")
-    axs[0].set_yticks([])
-    legend_colors = [Line2D([0], [0], color="red"), Line2D([0], [0], color="blue"), Line2D([0], [0], color="green")]
-    legend_names = ["Not a highlight", "Uncertainty", "Highlight"]
-    axs[0].legend(legend_colors, legend_names, loc="upper right")
-
-    # Plot predictions
-    axs[1].plot(predictions, "r-", label="Predictions")
-    axs[1].set_xlabel("Frame")
-    axs[1].set_ylabel("Predictions")
-    axs[1].legend(loc="upper right")
-
-    # Add instant and context rolling averages
-    if predictions_instant is not None:
-        axs[1].plot(predictions_instant, "b-", label="Instant")
-        axs[1].legend(loc="upper right")
-
-    if predictions_context is not None:
-        axs[1].plot(predictions_context, "b--", label="Context")
-        axs[1].legend(loc="upper right")
-
-    # Add optimal threshold as a horizontal line
-    if optimal_threshold is not None:
-        axs[1].axhline(y=optimal_threshold, color="green", linestyle="-", label="Optimal threshold")
-        axs[1].legend(loc="upper right")
-
-    # Add optimal threshold for the instant predictions as a dashed horizontal line
-    if optimal_threshold_instant is not None:
-        axs[1].axhline(y=optimal_threshold_instant, color="green", linestyle="--", label="Optimal threshold instant")
-        axs[1].legend(loc="upper right")
-
-    # Adjust layout to prevent clipping of labels
-    plt.tight_layout()
-
-    # Save the plot
-    plt.savefig(f"results/{fig_name}")
-
-
-def plotGroundTruthVSPredictionsTFM(
     frames_to_plot,
     ground_truth,
     predictions,

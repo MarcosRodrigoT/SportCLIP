@@ -42,7 +42,7 @@ from utils import (
     detectEvents,
     filterEvents,
     computeFrameLevelResults,
-    plotGroundTruthVSPredictionsTFM,
+    plotGroundTruthVSPredictions,
 )
 
 
