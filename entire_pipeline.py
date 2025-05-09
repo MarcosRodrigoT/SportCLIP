@@ -43,21 +43,9 @@ from utils import (
     filterEvents,
     computeFrameLevelResults,
     plotGroundTruthVSPredictions,
+    print_frame_level_results,
+    computeRollingAverages,
 )
-
-
-def computeRollingAverages(predictions):
-    predictions_instant = [np.mean(predictions[max(0, i - int(INSTANT_WINDOW / 2) - 1) : min(len(predictions) - 1, i + int(INSTANT_WINDOW / 2))]) for i in range(len(predictions))]
-    predictions_context = [np.mean(predictions[max(0, i - int(CONTEXT_WINDOW / 2) - 1) : min(len(predictions) - 1, i + int(CONTEXT_WINDOW / 2))]) for i in range(len(predictions))]
-
-    return predictions_instant, predictions_context
-
-
-def get_ground_truth(dataset_dir, sport):
-    if sport.endswith("-sports"):
-        return f"{dataset_dir}/{sport.split('-')[0]}.csv"
-    else:
-        return f"{dataset_dir}/{sport}.csv"
 
 
 def create_histogram(scores):
@@ -256,18 +244,6 @@ def compute_event_level_metrics(predictions, ground_truth, steps=10):
 
         event_content["associated_gt_events"] = []
 
-        # Select the best association method
-
-        # Option 1: IoU
-        # # Associate events which intersection over union (IoU) between the prediction and each ground truth event is greather than...
-        # for gt_event_number, gt_event_frames in gt_events.items():
-        #     intersection = len(set(event_content["frames"]).intersection(gt_event_frames))
-        #     union = len(set(event_content["frames"]).union(gt_event_frames))
-        #     iou = intersection / union
-        #     if iou > 0.5:
-        #         event_content["associated_gt_events"].append(gt_event_number)
-
-        # Option 2: Intersection
         # Associate events which intersection between the prediction and each ground truth event is greather than 30 % of the ground truth event
         threshold = 0.3
         for gt_event_number, gt_event_frames in gt_events.items():
@@ -312,6 +288,7 @@ if __name__ == "__main__":
     # Videos
     DATASET_DIR = "data"
     VIDEO = "long_jump"
+    GROUND_TRUTH = f"{DATASET_DIR}/{VIDEO}.csv"
 
     # Constants
     CONTEXT_WINDOW = 600
@@ -332,10 +309,9 @@ if __name__ == "__main__":
     # Load pairs' data and compute intermediate variables
     pairs_data = compute_intermediate_vars(VIDEO)
 
-    # Get ground truth and pairs that pass the filters
-    GROUND_TRUTH = get_ground_truth(DATASET_DIR, VIDEO)
-    PAIRS, area_filter = get_pairs(VIDEO, pairs_data, HIST_DIV)
-    MIN_AREA = area_filter if MIN_AREA == "dynamic" else MIN_AREA
+    # Get pairs that pass the filters
+    pairs, area_filter = get_pairs(VIDEO, pairs_data, HIST_DIV)
+    min_area = area_filter if MIN_AREA == "dynamic" else MIN_AREA
 
     # Pretty print
     print(f"\n{'':->50} VIDEO: {VIDEO.upper()} {'':->50}")
@@ -352,10 +328,10 @@ if __name__ == "__main__":
     ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
 
     # Compute median highlight score predictions
-    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in PAIRS], axis=0).tolist()
+    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in pairs], axis=0).tolist()
 
     # Compute the rolling average for the predictions (instant & context)
-    predictions_instant, predictions_context = computeRollingAverages(median_predictions)
+    predictions_instant, predictions_context = computeRollingAverages(median_predictions, INSTANT_WINDOW, CONTEXT_WINDOW)
 
     # Compute coarse final predictions (those where instant predictions are above the context)
     coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
@@ -385,16 +361,13 @@ if __name__ == "__main__":
     compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=NUM_STEPS)
 
     # Filter events by area
-    events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=MIN_AREA, reorder_by_relevance=False)
+    events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=min_area, reorder_by_relevance=False)
     print(f"{Color.GREEN}----------- Events after filtering by area -----------")
     print(f"{list(events_filtered.keys())}{Color.RESET}")
 
     # Obtain frame level results
     recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
-    print(f"{Color.CYAN}\n----------- Frame Level Results (filtering by min area: {MIN_AREA:.2f}) -----------")
-    print(f"RECALL:    {recall*100:.2f}%")
-    print(f"PRECISION: {precision*100:.2f}%")
-    print(f"FSCORE:    {fscore*100:.2f}%{Color.RESET}\n")
+    print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
 
     # Plot predictions against the ground truth
     plotGroundTruthVSPredictions(
@@ -417,4 +390,4 @@ if __name__ == "__main__":
 
     # Save pairs that were used
     with open(f"results/{VIDEO}/Pairs used.txt", "w") as file:
-        file.write(", ".join(map(str, PAIRS)))
+        file.write(", ".join(map(str, pairs)))
