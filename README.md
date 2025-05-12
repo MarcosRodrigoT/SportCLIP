@@ -10,7 +10,6 @@ This repository contains the code, example data and reproducibility scripts for 
 `# TODO: Modify entire_pipeline.py so that it actually produces the highlight reel.`<br>
 `# TODO: Rename python modules so that they make more sense (i.e., entire_pipeline.py -> summarize.py)`<br>
 `# TODO: Rename GitHub repo to just SportCLIP (and rename the one I use for the private repository to something else)`<br>
-`# TODO: Add a "tree" with the data/ folder showing where to put the videos and CSVs`<br>
 
 Our framework turns **any** sports video into a concise highlight reel by leveraging [OpenAI CLIP](https://github.com/openai/CLIP) image–text embeddings. The workflow is broken into three clear stages:
 
@@ -103,7 +102,27 @@ All default hyper-parameters are hard-coded in the corresponding scripts and can
 Place all **videos** and their **ground-truth annotation files** in the `data/` folder:
 
 * Videos: `*.mp4`, `*.mpeg`, `*.avi`, …
-* CSV annotations: `*.csv` (must include the columns `First frame`, `Last frame`, `Event type`).
+* CSV annotations: `*.csv` (must include the columns `Event type`, `First frame`, `Last frame`, `Num. frames`).
+
+When trying out `MATDAT` and `SportCLIP` datasets, extract all videos and ground-truth annotation files to this directory:
+
+```text
+data/
+├── V1.mpeg
+├── V1.csv
+├── V2.mpeg
+├── V2.csv
+├── V3.mpeg
+├── V3.csv
+├── diving.mp4
+├── diving.csv
+├── long_jump.mp4
+├── long_jump.csv
+├── pole_vault.mp4
+├── pole_vault.csv
+├── tumbling.mp4
+└── tumbling.csv
+```
 
 ---
 
@@ -187,8 +206,6 @@ if __name__ == "__main__":
 ```
 
 With these two edits you can quickly switch to new sports, experiment with prompt phrasing, or retune post-processing thresholds.
-
-* **GPU vs CPU**  Every script automatically uses CUDA if available; otherwise it will fall back to CPU.
 
 ---
 

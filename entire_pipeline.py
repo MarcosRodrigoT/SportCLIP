@@ -1,3 +1,5 @@
+import os
+import cv2
 import pickle
 import numpy as np
 import pandas as pd
@@ -253,6 +255,41 @@ def compute_event_level_metrics(predictions, ground_truth, steps=10):
         print(f"{Color.RESET}")
 
 
+def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/imgs", frame_ext="png", out_filename="highlight.mp4"):
+    # Make sure there are events detected
+    if not events_detected:
+        raise ValueError("events_detected is empty - nothing to export.")
+
+    # Output path
+    out_dir = os.path.join("results", video_name)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, out_filename)
+
+    # Determine frame size from the very first frame
+    first_event = min(events_detected.values(), key=lambda e: e["frames"][0])
+    sample_idx = first_event["frames"][0]
+    sample_path = os.path.join(frame_root, video_name, f"frame{sample_idx:05d}.{frame_ext}")
+    frame_sample = cv2.imread(sample_path)
+    if frame_sample is None:
+        raise FileNotFoundError(f"Cannot read sample frame: {sample_path}")
+    height, width = frame_sample.shape[:2]
+
+    # OpenCV writer
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # safe cross-platform codec
+    writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+
+    # Write frames in chronological order
+    for event in sorted(events_detected.values(), key=lambda e: e["frames"][0]):
+        for idx in event["frames"]:
+            img_path = os.path.join(frame_root, video_name, f"frame{idx:05d}.{frame_ext}")
+            frame = cv2.imread(img_path)
+            if frame is not None:
+                writer.write(frame)
+    writer.release()
+
+    return
+
+
 if __name__ == "__main__":
     # Videos
     DATASET_DIR = "data"
@@ -360,3 +397,13 @@ if __name__ == "__main__":
     # Save pairs that were used
     with open(f"results/{VIDEO}/Pairs used.txt", "w") as file:
         file.write(", ".join(map(str, pairs)))
+
+    # Save highlight reel
+    export_highlight_reel(
+        events_detected=events_filtered,
+        video_name=VIDEO,
+        fps=30,
+        frame_root="data/imgs",
+        frame_ext="png",
+        out_filename="highlight.mp4",
+    )
