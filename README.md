@@ -7,15 +7,14 @@ This repository contains the code, example data and reproducibility scripts for 
 
 ![Architecture](assets/Architecture.jpg)
 
-`# TODO: Modify entire_pipeline.py so that it actually produces the highlight reel.`<br>
-`# TODO: Rename python modules so that they make more sense (i.e., entire_pipeline.py -> summarize.py)`<br>
+`# TODO: Rename python modules so that they make more sense (i.e., summarize.py -> summarize.py)`<br>
 `# TODO: Rename GitHub repo to just SportCLIP (and rename the one I use for the private repository to something else)`<br>
 
 Our framework turns **any** sports video into a concise highlight reel by leveraging [OpenAI CLIP](https://github.com/openai/CLIP) image–text embeddings. The workflow is broken into three clear stages:
 
 1. **Frame & embedding extraction** (`extractor.py`)
-2. **Prompt engineering & event detection** (`multi_sentences.py`)
-3. **Post-processing & metric computation** (`entire_pipeline.py`)
+2. **Prompt engineering** (`multi_sentences.py`)
+3. **Highlight extraction & evaluation** (`summarize.py`)
 
 ---
 
@@ -27,7 +26,6 @@ Our framework turns **any** sports video into a concise highlight reel by levera
 * [Configuration](#configuration)
 * [Outputs & Results](#outputs--results)
 * [Citation](#citation)
-* [License](#license)
 
 ---
 
@@ -70,7 +68,7 @@ $ python multi_sentences.py
 # ▸ results are written to results/<video_name>/
 
 # 3. Generate final predictions, plots & evaluation metrics
-$ python entire_pipeline.py
+$ python summarize.py
 # ▸ key outputs appear in results/<video_name>/Final result.png
 ```
 
@@ -84,7 +82,7 @@ All default hyper-parameters are hard-coded in the corresponding scripts and can
 .
 ├── extractor.py
 ├── multi_sentences.py
-├── entire_pipeline.py
+├── summarize.py
 ├── utils.py
 ├── requirements.txt
 ├── data/                 # ─► videos & ground-truth annotations
@@ -179,7 +177,7 @@ class Config:
 
 ### Generating the final highlight reel
 
-Before executing **`entire_pipeline.py`**, adjust the top-level constants so they match your dataset and desired hyper-parameters:
+Before executing **`summarize.py`**, adjust the top-level constants so they match your dataset and desired hyper-parameters:
 
 ```python
 if __name__ == "__main__":
@@ -219,6 +217,7 @@ After running the full pipeline you will find:
 | `results/<video>/Pairs used.txt`   | List of prompt pairs kept after filtering         |
 | `results/<video>/*.pkl`            | Pickled KDE curves, scores & auxiliary stats      |
 | `results/<video>/*.png`            | Histograms and stitched diagnostic images         |
+| `results/<video>/highlight.mp4`    | Final highlight reel                              |
 
 ---
 
@@ -234,11 +233,5 @@ If you find our work useful in your research, please cite:
   year    = {2025}
 }
 ```
-
----
-
-## License
-
-This project is released under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 
 Happy summarizing! 🎬🏅
