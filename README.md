@@ -103,7 +103,7 @@ Place all **videos** and their **ground-truth annotation files** in the `data/` 
 * Videos: `*.mp4`, `*.mpeg`, `*.avi`, …
 * CSV annotations: `*.csv` (must include the columns `Event type`, `First frame`, `Last frame`, `Num. frames`).
 
-When trying out `MATDAT` and `SportCLIP` datasets, extract all videos and ground-truth annotation files to this directory:
+When trying out [MATDAT](http://gti.ssr.upm.es/data/matdat) and [SportCLIP](http://gti.ssr.upm.es/data/sportclip) datasets, extract all videos and ground-truth annotation files to this directory:
 
 ```text
 data/
