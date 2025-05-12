@@ -68,7 +68,7 @@ $ python extractor.py \
 $ python multi_sentences.py
 # ▸ results are written to results/<video_name>/
 
-# 3. Generate final predictions, plots & evaluation metrics
+# 3. Generate final video summary (highlight reel), plots & evaluation metrics
 $ python summarize.py
 # ▸ key outputs appear in results/<video_name>/Final result.png
 ```
