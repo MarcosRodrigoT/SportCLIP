@@ -47,6 +47,7 @@ $ pip install --upgrade pip
 $ pip install -r requirements.txt
 
 # 4. Install and test FFmpeg / FFprobe (needed by extractor.py)
+$ sudo apt install -y ffmpeg
 $ ffmpeg -version && ffprobe -version  # should print version info
 ```
 
