@@ -70,7 +70,7 @@ $ python multi_sentences.py
 
 # 3. Generate final video summary (highlight reel), plots & evaluation metrics
 $ python summarize.py
-# ▸ key outputs appear in results/<video_name>/Final result.png
+# ▸ results are written to results/<video_name>/
 ```
 
 All default hyper-parameters are hard-coded in the corresponding scripts and can be overridden via command-line flags or by editing the classes at the top of each file.
