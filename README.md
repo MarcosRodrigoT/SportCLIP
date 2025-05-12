@@ -7,9 +7,6 @@ This repository contains the code, example data and reproducibility scripts for 
 
 ![Architecture](assets/Architecture.jpg)
 
-`# TODO: Rename python modules so that they make more sense (i.e., summarize.py -> summarize.py)`<br>
-`# TODO: Rename GitHub repo to just SportCLIP (and rename the one I use for the private repository to something else)`<br>
-
 Our framework turns **any** sports video into a concise highlight reel by leveraging [OpenAI CLIP](https://github.com/openai/CLIP) image–text embeddings. The workflow is broken into three clear stages:
 
 1. **Frame & embedding extraction** (`extractor.py`)
