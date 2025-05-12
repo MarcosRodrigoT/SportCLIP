@@ -5,7 +5,7 @@ This repository contains the code, example data and reproducibility scripts for 
 
 [[`Webpage`]](http://gti.ssr.upm.es/data/sportclip) | [[`Paper`]](#citation)
 
-![Architecture](assets/Architecture.png)
+![Architecture](assets/Architecture.jpg)
 
 `# TODO: Modify entire_pipeline.py so that it actually produces the highlight reel.`<br>
 `# TODO: Rename python modules so that they make more sense (i.e., entire_pipeline.py -> summarize.py)`<br>
