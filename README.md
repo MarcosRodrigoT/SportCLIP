@@ -222,7 +222,6 @@ If you find our work useful in your research, please cite:
 
 ## License
 
-This project is released under the **MIT License**. &#x20;
-See [`LICENSE`](LICENSE) for details.
+This project is released under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 
 Happy summarizing! 🎬🏅
