@@ -1,6 +1,7 @@
 import os
 import cv2
 import pickle
+import argparse
 import numpy as np
 import pandas as pd
 from utils import Color
@@ -291,9 +292,17 @@ def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/
 
 
 if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video_name", type=str, default="longjump_video1", help="Name of the video (without extension) to process")
+    args = parser.parse_args()
+
     # Videos
-    DATASET_DIR = "data"
-    VIDEO = "long_jump"
+    # TODO: Remember to change below lines to for the final submission:
+    # DATASET_DIR = "data"
+    # VIDEO = "long_jump"
+    DATASET_DIR = "/mnt/Data/mrt/SportCLIP-OlympicHighlights"
+    VIDEO = args.video_name
     GROUND_TRUTH = f"{DATASET_DIR}/{VIDEO}.csv"
 
     # Constants
@@ -330,11 +339,27 @@ if __name__ == "__main__":
     # Get ground truth and empty predictions
     ground_truth, _ = createGrounTruth(annotations_file=GROUND_TRUTH)
 
+    # Compute median highlight score predictions
+    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in pairs], axis=0).tolist()
+
+    # Align ground truth with predictions length (handle off-by-one or missing frames)
+    if isinstance(ground_truth, dict):
+        # Remove frames from ground truth that exceed the predictions length
+        frames_to_remove = [k for k in ground_truth.keys() if k >= len(median_predictions)]
+        for k in frames_to_remove:
+            ground_truth.pop(k, None)
+
     # Convert ground truth to list
     ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
 
-    # Compute median highlight score predictions
-    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in pairs], axis=0).tolist()
+    # Align lengths: handle annotation gaps or missing embeddings
+    # Ground truth may have gaps (missing frames in annotations) or go beyond available predictions
+    min_len = min(len(ground_truth_list), len(median_predictions))
+    if len(ground_truth_list) != len(median_predictions):
+        print(f"{Color.YELLOW}Warning: Length mismatch - Ground truth: {len(ground_truth_list)}, Predictions: {len(median_predictions)}")
+        print(f"Truncating both to {min_len} frames{Color.RESET}")
+    ground_truth_list = ground_truth_list[:min_len]
+    median_predictions = median_predictions[:min_len]
 
     # Compute the rolling average for the predictions (instant & context)
     predictions_instant, predictions_context = computeRollingAverages(median_predictions, INSTANT_WINDOW, CONTEXT_WINDOW)
@@ -403,7 +428,9 @@ if __name__ == "__main__":
         events_detected=events_filtered,
         video_name=VIDEO,
         fps=30,
-        frame_root="data/imgs",
+        # TODO: Remember to change below lines to for the final submission:
+        # frame_root="data/imgs",
+        frame_root="/mnt/Data/mrt/SportCLIP-OlympicHighlights/imgs",
         frame_ext="png",
         out_filename="highlight.mp4",
     )

@@ -78,8 +78,16 @@ def collectPredictions(root_dir, video_name, class_embeddings, model, prediction
     img_embeddings_dir = os.path.join(root_dir, "img_embeddings", video_name)
     img_embeddings_files = [os.path.join(img_embeddings_dir, file) for file in sorted(os.listdir(img_embeddings_dir))]
 
-    for img_embedding_file in img_embeddings_files:
+    total_frames = len(img_embeddings_files)
+    for idx, img_embedding_file in enumerate(img_embeddings_files):
+        if idx % 1000 == 0:
+            print(f"Processing frame {idx}/{total_frames} ({idx/total_frames*100:.1f}%)", flush=True)
+
         frame_num = int(img_embedding_file.split("/frame")[-1].split(".")[0])
+
+        # Only add predictions for frames that exist in ground truth
+        if frame_num not in predictions:
+            continue
 
         img_embeddings = np.load(img_embedding_file)
 

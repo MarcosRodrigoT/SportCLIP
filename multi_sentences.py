@@ -1,3 +1,4 @@
+import argparse
 import os
 import pickle
 import numpy as np
@@ -25,83 +26,62 @@ from utils import (
 
 class Config:
     # Main parameters
-    root_dir = "data"
-    video_name = "long_jump"
-    results_folder = f"results/{video_name}"
-    os.makedirs(results_folder, exist_ok=True)
+    # TODO: Remember to change below lines to for the final submission:
+    # root_dir = "data"
+    # video_name = "long_jump"
+    root_dir = "/mnt/Data/mrt/SportCLIP-OlympicHighlights"
+    video_name = "highjump_video1"
 
-    context_window = 500
+    context_window = 600
     instant_window = int(context_window / 10)
     closing_kernel = int(context_window / 10 + 1)
     min_duration = 15
     min_area = 15
 
     """ Highlight and non-highlight sentences """
-    # Tricking
-    # highlight_sentences = [
-    #     "A highlight",
-    #     "A person doing something interesting",
-    #     "Someone practicing dynamic movements",
-    #     "Someone is performing martial arts tricking",
-    #     "A skilled athlete executing kicks and spins",
-    #     "A person is performing some type of acrobatics",
-    #     "A person is clearly performing some type of acrobatics in a gym",
-    #     "Tricker performing a pass including flips, transitions and kicks",
-    # ]
-    # not_highlight_sentences = [
-    #     "Not a highlight",
-    #     "A gym with people present",
-    #     "A group of people chatting and relaxing",
-    #     "Athletes preparing for their practice session",
-    #     "A group of people in a gym, ready to perform acrobatics but not at the moment",
-    #     "No one is currently performing acrobatics, people enjoy a moment of relaxed interaction",
-    #     "Trickers form a circle, chatting and enjoying a break, with no one currently performing acrobatics",
-    #     "Trickers relaxed in a gym, talking, walking, waiting for their turn to perform flips and tricks",
-    # ]
-
     # Diving
-    # highlight_sentences = [
-    #     "A diver launching into the air, executing elegant flips and twists before entering the water seamlessly",
-    #     "A person performing an intricate diving maneuver, maintaining perfect control and posture",
-    #     "A high-speed, precise dive with controlled rotation and a smooth water entry",
-    #     "A diver executing a complex aerial twist, demonstrating agility and technical skill",
-    #     "A person in mid-air, rotating dynamically before breaking the water surface with minimal splash",
-    #     "A skilled athlete performing a synchronized series of rotations and flips before entering the water",
-    #     "A diver showcasing advanced aerial control, twisting and flipping effortlessly during descent",
-    #     "Diver executing precise, high-speed flips and twists with controlled power while in the air, during the dive",
-    # ]
-    # not_highlight_sentences = [
-    #     "A diver standing on the platform, preparing for their turn",
-    #     "An athlete adjusting their stance and breathing before initiating the dive",
-    #     "A group of divers discussing techniques near the pool",
-    #     "A coach providing feedback while the diver listens attentively",
-    #     "A person climbing the ladder to get to the diving board",
-    #     "An athlete walking along the pool deck, stretching and preparing",
-    #     "A diver surfacing after the dive, calmly swimming towards the pool's edge",
-    #     "Diver relaxed, getting prepared to perform, close to the edge of the platform, greeting judges, walking, swimming, diving below the water",
-    # ]
-
-    # Long jump
     highlight_sentences = [
-        "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
-        "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
-        "A person accelerating down the track, generating momentum for an explosive jump",
-        "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
-        "A competitor demonstrating strength and precision in a long jump attempt",
-        "A long jumper executing a perfect flight phase, reaching their peak height before descent",
-        "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
-        "Athlete running, jumping into the air and landing in the sand pit",
+        "A diver launching into the air, executing elegant flips and twists before entering the water seamlessly",
+        "A person performing an intricate diving maneuver, maintaining perfect control and posture",
+        "A high-speed, precise dive with controlled rotation and a smooth water entry",
+        "A diver executing a complex aerial twist, demonstrating agility and technical skill",
+        "A person in mid-air, rotating dynamically before breaking the water surface with minimal splash",
+        "A skilled athlete performing a synchronized series of rotations and flips before entering the water",
+        "A diver showcasing advanced aerial control, twisting and flipping effortlessly during descent",
+        "Diver executing precise, high-speed flips and twists with controlled power while in the air, during the dive",
     ]
     not_highlight_sentences = [
-        "A long jumper adjusting their starting position on the runway",
-        "A person discussing jump techniques with a coach",
-        "An athlete waiting for their turn while observing competitors",
-        "A group of athletes standing near the sand pit, preparing for their jumps",
-        "A long jumper walking back after a completed attempt",
-        "A judge measuring the distance of a jump while athletes watch",
-        "A competitor stretching and warming up before their jump",
-        "Athlete relaxed, greeting judges, celebrating",
+        "A diver standing on the platform, preparing for their turn",
+        "An athlete adjusting their stance and breathing before initiating the dive",
+        "A group of divers discussing techniques near the pool",
+        "A coach providing feedback while the diver listens attentively",
+        "A person climbing the ladder to get to the diving board",
+        "An athlete walking along the pool deck, stretching and preparing",
+        "A diver surfacing after the dive, calmly swimming towards the pool's edge",
+        "Diver relaxed, getting prepared to perform, close to the edge of the platform, greeting judges, walking, swimming, diving below the water",
     ]
+
+    # Long jump
+    # highlight_sentences = [
+    #     "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
+    #     "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
+    #     "A person accelerating down the track, generating momentum for an explosive jump",
+    #     "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
+    #     "A competitor demonstrating strength and precision in a long jump attempt",
+    #     "A long jumper executing a perfect flight phase, reaching their peak height before descent",
+    #     "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
+    #     "Athlete running, jumping into the air and landing in the sand pit",
+    # ]
+    # not_highlight_sentences = [
+    #     "A long jumper adjusting their starting position on the runway",
+    #     "A person discussing jump techniques with a coach",
+    #     "An athlete waiting for their turn while observing competitors",
+    #     "A group of athletes standing near the sand pit, preparing for their jumps",
+    #     "A long jumper walking back after a completed attempt",
+    #     "A judge measuring the distance of a jump while athletes watch",
+    #     "A competitor stretching and warming up before their jump",
+    #     "Athlete relaxed, greeting judges, celebrating",
+    # ]
 
     # Pole vault
     # highlight_sentences = [
@@ -147,6 +127,95 @@ class Config:
     #     "Athlete relaxed, getting prepared to perform, greeting judges",
     # ]
 
+    # Tricking
+    # highlight_sentences = [
+    #     "A highlight",
+    #     "A person doing something interesting",
+    #     "Someone practicing dynamic movements",
+    #     "Someone is performing martial arts tricking",
+    #     "A skilled athlete executing kicks and spins",
+    #     "A person is performing some type of acrobatics",
+    #     "A person is clearly performing some type of acrobatics in a gym",
+    #     "Tricker performing a pass including flips, transitions and kicks",
+    # ]
+    # not_highlight_sentences = [
+    #     "Not a highlight",
+    #     "A gym with people present",
+    #     "A group of people chatting and relaxing",
+    #     "Athletes preparing for their practice session",
+    #     "A group of people in a gym, ready to perform acrobatics but not at the moment",
+    #     "No one is currently performing acrobatics, people enjoy a moment of relaxed interaction",
+    #     "Trickers form a circle, chatting and enjoying a break, with no one currently performing acrobatics",
+    #     "Trickers relaxed in a gym, talking, walking, waiting for their turn to perform flips and tricks",
+    # ]
+
+    ##################################### Olympic Highlights dataset #####################################
+    # 100 meters
+    # highlight_sentences = [
+    #     "A sprinter exploding out of the blocks at the gun, driving powerfully in the first meters",
+    #     "An athlete accelerating through the drive phase, staying low before rising to top speed",
+    #     "A runner at maximum velocity with rapid turnover and relaxed upper body form",
+    #     "A sprinter smoothly transitioning from drive phase to upright sprinting down the straight",
+    #     "A sprinter surging ahead of the field, maintaining form in the final 30 meters",
+    #     "Two athletes neck-and-neck approaching the finish line at full speed",
+    #     "A runner dipping at the finish line to secure the win",
+    #     "A clean start, sustained acceleration, and strong finish in a 100-meter sprint",
+    # ]
+    # not_highlight_sentences = [
+    #     "Athletes standing behind the starting blocks, waiting for their heat",
+    #     "A sprinter adjusting block settings and checking foot placement",
+    #     "Athletes shaking out their legs and doing light drills before the start",
+    #     "Officials giving instructions while runners settle into their lanes",
+    #     "A false start review delay with athletes stepping away from the blocks",
+    #     "Runners walking back after the race, breathing heavily and recovering",
+    #     "A coach discussing technique with a sprinter near the track",
+    #     "Crowd shots, scoreboard views, and athletes waiting between heats",
+    # ]
+
+    # Javelin
+    # highlight_sentences = [
+    #     "A javelin thrower accelerating through the run-up with controlled cross-steps",
+    #     "An athlete executing the impulse step and planting hard before release",
+    #     "A powerful javelin throw with full-body rotation and a clean spear release",
+    #     "The javelin flying in a long, stable trajectory before landing deep in the sector",
+    #     "A thrower delivering a season-best attempt with strong follow-through",
+    #     "An athlete maintaining perfect alignment and timing at the moment of release",
+    #     "A long throw that lands clearly past previous markers in the sector",
+    #     "A technically precise throw with explosive plant, whip-like arm, and balanced recovery",
+    # ]
+    # not_highlight_sentences = [
+    #     "A javelin thrower measuring the run-up and marking steps on the track",
+    #     "An athlete adjusting grip and testing the balance of the javelin before the attempt",
+    #     "A thrower standing at the back of the runway, waiting for the official signal",
+    #     "Officials retrieving the javelin and placing distance markers in the field",
+    #     "A coach giving feedback while the athlete listens and nods",
+    #     "An athlete walking back calmly after a completed attempt",
+    #     "Light warm-up drills, arm swings, and footwork practice on the runway",
+    #     "Athletes chatting near the fence and watching other competitors throw",
+    # ]
+
+    # High jump
+    # highlight_sentences = [
+    #     "A high jumper accelerating along a curved approach toward the bar",
+    #     "An athlete planting and taking off explosively, beginning the Fosbury flop",
+    #     "A jumper arching over the bar with tight form and clearing cleanly",
+    #     "A precise bar clearance followed by a controlled landing on the mat",
+    #     "A first-time clearance at a new height with excellent timing and body control",
+    #     "A high jumper adjusting mid-air posture to avoid brushing the bar",
+    #     "A clutch make on a final attempt to stay in the competition",
+    #     "A smooth approach, powerful takeoff, and clean clearance at a challenging height",
+    # ]
+    # not_highlight_sentences = [
+    #     "A high jumper pacing out and marking their approach on the apron",
+    #     "An athlete standing and visualizing the run-up before starting",
+    #     "Officials measuring and setting the bar height while athletes wait",
+    #     "A jumper sitting on the mat, resting and adjusting spikes",
+    #     "Light warm-up hops and run-throughs without an actual attempt",
+    #     "A coach providing brief instructions while the athlete nods",
+    #     "An athlete retrieving their belongings and walking back to the start area",
+    #     "Spectators and scoreboard views during breaks between attempts",
+    # ]
+
     sentences = highlight_sentences + not_highlight_sentences
 
     # Plotting parameters
@@ -157,13 +226,24 @@ class Config:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video_name", type=str, default=Config.video_name, help="Name of the video (without extension) to process")
+    args = parser.parse_args()
+    Config.video_name = args.video_name
+    Config.results_folder = f"results/{Config.video_name}"
+    os.makedirs(Config.results_folder, exist_ok=True)
+
     # Get ground truth and empty predictions
     ground_truth, predictions = createGrounTruth(annotations_file=os.path.join(Config.root_dir, f"{Config.video_name}.csv"))
 
     # Loop over the different sentences forming pairs
     pair_num = 0
+    total_pairs = len(Config.highlight_sentences) * len(Config.not_highlight_sentences)
     for h_sent_idx, h_sentence in enumerate(Config.highlight_sentences):
         for nh_sent_idx, nh_sentence in enumerate(Config.not_highlight_sentences):
+            print(f"\n{Color.ORANGE}{'='*80}")
+            print(f"PAIR {pair_num}/{total_pairs} (H{h_sent_idx} x NH{nh_sent_idx})")
+            print(f"{'='*80}{Color.RESET}")
             print(f"{Color.ORANGE}----------- Highlight sentence {h_sent_idx}:{' ': >6} -----------{Color.RESET}\n{h_sentence}")
             print(f"{Color.ORANGE}----------- Not a highlight sentence {nh_sent_idx}: -----------{Color.RESET}\n{nh_sentence}")
 
@@ -179,6 +259,15 @@ def main():
                 model=clip_model,
                 predictions=predictions,
             )
+
+            # Drop any frames that have no predictions (e.g., off-by-one last frame)
+            if isinstance(predictions, dict):
+                missing_keys = [k for k, v in predictions.items() if v is None]
+                for k in missing_keys:
+                    predictions.pop(k, None)
+                    # Keep ground truth aligned with predictions
+                    if isinstance(ground_truth, dict):
+                        ground_truth.pop(k, None)
 
             # Convert ground truth and predictions to lists
             ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
