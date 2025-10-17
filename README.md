@@ -62,15 +62,18 @@ $ python extractor.py \
         --frames-per-second 29.97
 
 # 2. Run multiple sentence prompts to discover the best highlight / non-highlight pairs
-$ python multi_sentences.py
+$ python multi_sentences.py \
+        --video_name long_jump \
+        --sentences_file data/sentences/long_jump.json
 # ▸ results are written to results/<video_name>/
 
 # 3. Generate final video summary (highlight reel), plots & evaluation metrics
-$ python summarize.py
+$ python summarize.py \
+        --video_name long_jump
 # ▸ results are written to results/<video_name>/
 ```
 
-All default hyper-parameters are hard-coded in the corresponding scripts and can be overridden via command-line flags or by editing the classes at the top of each file.
+All default hyper-parameters can be overridden via command-line flags. Run each script with `--help` to see all available options.
 
 ---
 
@@ -83,7 +86,9 @@ All default hyper-parameters are hard-coded in the corresponding scripts and can
 ├── summarize.py
 ├── utils.py
 ├── requirements.txt
-├── data/                 # ─► videos & ground-truth annotations
+├── data/
+│   ├── sentences/        # ─► JSON files with highlight/non-highlight sentences  (provided)
+│   └── ...               # ─► videos & ground-truth annotations
 ├── imgs/                 # ─► one sub-folder per video with extracted frames     (generated)
 ├── img_embeddings/       # ─► one sub-folder per video with CLIP embeddings      (generated)
 └── results/              # ─► per-video plots, logs & metrics                    (generated)
@@ -124,24 +129,14 @@ data/
 
 ### Trying out new sentences or sports
 
-Edit the **`Config`** class in **`multi_sentences.py`** to point to a different video or to craft sport-specific prompts. Use the template below as a guide and adapt the lists of `highlight_sentences` and `not_highlight_sentences` to your domain:
+Sentence prompts are stored as JSON files in the **`data/sentences/`** directory. Each sport has its own JSON file containing `highlight_sentences` and `not_highlight_sentences`. To craft sport-specific prompts:
 
-```python
-class Config:
-    # Main parameters
-    root_dir = "data"
-    video_name = "long_jump"
-    results_folder = f"results/{video_name}"
-    os.makedirs(results_folder, exist_ok=True)
+1. Create a new JSON file in `data/sentences/` (e.g., `my_sport.json`)
+2. Use the template below as a guide:
 
-    context_window = 600
-    instant_window = int(context_window / 10)
-    closing_kernel = int(context_window / 10 + 1)
-    min_duration = 15
-    min_area = 15
-
-    # Highlight and non-highlight sentences
-    highlight_sentences = [
+```json
+{
+    "highlight_sentences": [
         "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
         "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
         "A person accelerating down the track, generating momentum for an explosive jump",
@@ -149,9 +144,9 @@ class Config:
         "A competitor demonstrating strength and precision in a long jump attempt",
         "A long jumper executing a perfect flight phase, reaching their peak height before descent",
         "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
-        "Athlete running, jumping into the air and landing in the sand pit",
-    ]
-    not_highlight_sentences = [
+        "Athlete running, jumping into the air and landing in the sand pit"
+    ],
+    "not_highlight_sentences": [
         "A long jumper adjusting their starting position on the runway",
         "A person discussing jump techniques with a coach",
         "An athlete waiting for their turn while observing competitors",
@@ -159,49 +154,82 @@ class Config:
         "A long jumper walking back after a completed attempt",
         "A judge measuring the distance of a jump while athletes watch",
         "A competitor stretching and warming up before their jump",
-        "Athlete relaxed, greeting judges, celebrating",
+        "Athlete relaxed, greeting judges, celebrating"
     ]
-
-    sentences = highlight_sentences + not_highlight_sentences
-
-    # Plotting parameters
-    hist_sharey = True            # Share y axis across individual histograms
-    hist_scale_y = True           # Dynamic y-axis scaling
-    draw_individual_plots = True
-    frames_to_plot = [0, 7500]
+}
 ```
+
+3. Run `multi_sentences.py` with your custom sentences file:
+
+```bash
+$ python multi_sentences.py \
+        --root_dir data \
+        --video_name my_video \
+        --sentences_file data/sentences/my_sport.json \
+        --context_window 600 \
+        --min_duration 15 \
+        --min_area 15 \
+        --hist_sharey True \
+        --hist_scale_y True \
+        --draw_individual_plots True \
+        --frames_to_plot 0 7500
+```
+
+**Key parameters:**
+- `--root_dir`: Root directory containing video data and annotations
+- `--video_name`: Name of the video (without extension) to process
+- `--sentences_file`: Path to JSON file with highlight/non-highlight sentences
+- `--context_window`: Context window size for rolling average (default: 600)
+- `--min_duration`: Minimum duration (in frames) for event filtering (default: 15)
+- `--min_area`: Minimum area for event filtering (default: 15)
+- `--hist_sharey`: Share y-axis among histplots when drawing multiple plots (default: True)
+- `--hist_scale_y`: Dynamically scale y-axis vs. fixed to frame count (default: True)
+- `--draw_individual_plots`: Whether to draw individual diagnostic plots (default: True)
+- `--frames_to_plot`: Frame range to plot [start, end] (default: 0 7500)
+
+Pre-configured sentence files are provided for: **diving**, **long_jump**, **pole_vault**, **tumbling**, **tricking**, **100_meters**, **javelin**, and **high_jump**.
+
+Run `python multi_sentences.py --help` to see all available options.
 
 ---
 
 ### Generating the final highlight reel
 
-Before executing **`summarize.py`**, adjust the top-level constants so they match your dataset and desired hyper-parameters:
+The **`summarize.py`** script accepts command-line arguments to customize the highlight extraction process. All parameters have sensible defaults but can be overridden:
 
-```python
-if __name__ == "__main__":
-    # Videos
-    DATASET_DIR = "data"
-    VIDEO = "long_jump"
-    GROUND_TRUTH = f"{DATASET_DIR}/{VIDEO}.csv"
-
-    # Constants
-    CONTEXT_WINDOW = 600
-    INSTANT_WINDOW = int(CONTEXT_WINDOW / 10)
-    CLOSING_KERNEL = int(CONTEXT_WINDOW / 10 + 1)
-    MIN_DURATION = 15
-    MIN_AREA = "dynamic"  # "dynamic" or numeric (e.g., 15)
-
-    # Filters
-    FILTER_SEPARATION = 0.1
-    FILTER_RANGE = 0.4
-    FILTER_AUC = 0.4
-    HIST_DIV = 2
-
-    # Ablation
-    NUM_STEPS = 10
+```bash
+$ python summarize.py \
+        --dataset_dir data \
+        --video_name long_jump \
+        --context_window 600 \
+        --min_duration 15 \
+        --min_area dynamic \
+        --filter_separation 0.1 \
+        --filter_range 0.4 \
+        --filter_auc 0.4 \
+        --hist_div 2 \
+        --fps 30 \
+        --frame_root data/imgs \
+        --out_filename highlight.mp4
 ```
 
-With these two edits you can quickly switch to new sports, experiment with prompt phrasing, or retune post-processing thresholds.
+**Key parameters:**
+- `--dataset_dir`: Root directory containing video data and annotations
+- `--video_name`: Name of the video (without extension) to process
+- `--context_window`: Context window size for rolling average (default: 600)
+- `--min_duration`: Minimum duration (in frames) for event filtering (default: 15)
+- `--min_area`: Use `"dynamic"` for automatic threshold or a numeric value (e.g., `15`)
+- `--filter_separation`: Minimum separation threshold for histogram filtering (default: 0.1)
+- `--filter_range`: Minimum range threshold for histogram filtering (default: 0.4)
+- `--filter_auc`: Maximum AUC threshold for histogram filtering (default: 0.4)
+- `--hist_div`: Histogram division factor for area filtering (default: 2)
+- `--num_steps`: Step size for ablation metrics thresholds (default: 10)
+- `--fps`: Frames per second for exported highlight reel (default: 30)
+- `--frame_root`: Root directory containing extracted frames (default: data/imgs)
+- `--frame_ext`: Frame image file extension (default: png)
+- `--out_filename`: Output filename for highlight reel (default: highlight.mp4)
+
+Run `python summarize.py --help` to see all available options.
 
 ---
 
@@ -227,7 +255,7 @@ If you find our work useful in your research, please cite:
 @article{rodrigo2025sportclip,
   title   = {Text-Guided Sports Highlights: A CLIP-Based Framework for Automatic Video Summarization},
   author  = {Marcos Rodrigo, Carlos Cuevas, and Narciso García},
-  journal = {IEEE Transactions on Consumer Electronics},
+  journal = {IEEE Access},
   year    = {2025}
 }
 ```
