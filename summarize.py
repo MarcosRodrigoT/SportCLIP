@@ -108,10 +108,10 @@ def compute_intermediate_vars(vid_name):
     return intermediate_vars_dict
 
 
-def filter_by_histogram(pairs_data):
+def filter_by_histogram(pairs_data, filter_separation, filter_range, filter_auc):
     # Filter by separation, range, and AUC
     events_to_remove = [
-        pair_num for pair_num, vars in pairs_data.items() if np.abs(vars["separation"]) < FILTER_SEPARATION or vars["range"] < FILTER_RANGE or vars["auc"] > FILTER_AUC
+        pair_num for pair_num, vars in pairs_data.items() if np.abs(vars["separation"]) < filter_separation or vars["range"] < filter_range or vars["auc"] > filter_auc
     ]
 
     return events_to_remove
@@ -148,11 +148,11 @@ def filter_by_area(sport, hist_div=2, num_bins=50):
     return pairs_to_remove, area_filter
 
 
-def get_pairs(sport, pairs_data, hist_div=2):
+def get_pairs(sport, pairs_data, filter_separation, filter_range, filter_auc, hist_div=2):
     pairs_to_remove = set()
 
     # Filter by histogram
-    pairs_filtered_by_histogram = filter_by_histogram(pairs_data)
+    pairs_filtered_by_histogram = filter_by_histogram(pairs_data, filter_separation, filter_range, filter_auc)
     pairs_to_remove.update(pairs_filtered_by_histogram)
 
     # Filter by area
@@ -293,40 +293,53 @@ def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/
 
 if __name__ == "__main__":
     # Parse command-line arguments
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Summarize video highlights using median predictions from filtered sentence pairs")
+
+    # Video parameters
+    # TODO: Remember to change below lines to for the final submission:
+    # default dataset_dir should be "data"
+    # default video_name should be "long_jump"
+    parser.add_argument("--dataset_dir", type=str, default="/mnt/Data/mrt/SportCLIP-OlympicHighlights", help="Root directory containing video data")
     parser.add_argument("--video_name", type=str, default="longjump_video1", help="Name of the video (without extension) to process")
+
+    # Window and filter parameters
+    parser.add_argument("--context_window", type=int, default=600, help="Context window size for rolling average")
+    parser.add_argument("--min_duration", type=int, default=15, help="Minimum duration for event filtering")
+    parser.add_argument("--min_area", type=str, default="dynamic", help="Minimum area for event filtering ('dynamic' or a numeric value)")
+
+    # Filter thresholds
+    parser.add_argument("--filter_separation", type=float, default=0.1, help="Minimum separation threshold for histogram filtering")
+    parser.add_argument("--filter_range", type=float, default=0.4, help="Minimum range threshold for histogram filtering")
+    parser.add_argument("--filter_auc", type=float, default=0.4, help="Maximum AUC threshold for histogram filtering")
+    parser.add_argument("--hist_div", type=int, default=2, help="Histogram division factor for area filtering")
+
+    # Ablation parameters
+    parser.add_argument("--num_steps", type=int, default=10, help="Step size for ablation metrics thresholds")
+
+    # Export parameters
+    parser.add_argument("--fps", type=int, default=30, help="Frames per second for exported highlight reel")
+    # TODO: Remember to change below lines to for the final submission:
+    # default frame_root should be "data/imgs"
+    parser.add_argument("--frame_root", type=str, default="/mnt/Data/mrt/SportCLIP-OlympicHighlights/imgs", help="Root directory containing extracted frames")
+    parser.add_argument("--frame_ext", type=str, default="png", help="Frame image file extension")
+    parser.add_argument("--out_filename", type=str, default="highlight.mp4", help="Output filename for highlight reel")
+
     args = parser.parse_args()
 
-    # Videos
-    # TODO: Remember to change below lines to for the final submission:
-    # DATASET_DIR = "data"
-    # VIDEO = "long_jump"
-    DATASET_DIR = "/mnt/Data/mrt/SportCLIP-OlympicHighlights"
+    # Compute derived parameters
+    instant_window = int(args.context_window / 10)
+    closing_kernel = int(args.context_window / 10 + 1)
+
+    # Set up paths
     VIDEO = args.video_name
-    GROUND_TRUTH = f"{DATASET_DIR}/{VIDEO}.csv"
-
-    # Constants
-    CONTEXT_WINDOW = 600
-    INSTANT_WINDOW = int(CONTEXT_WINDOW / 10)
-    CLOSING_KERNEL = int(CONTEXT_WINDOW / 10 + 1)
-    MIN_DURATION = 15
-    MIN_AREA = "dynamic"  # "dynamic" or float (i.e., 15)
-
-    # Filters
-    FILTER_SEPARATION = 0.1
-    FILTER_RANGE = 0.4
-    FILTER_AUC = 0.4
-    HIST_DIV = 2
-
-    # Ablation
-    NUM_STEPS = 10
+    GROUND_TRUTH = f"{args.dataset_dir}/{VIDEO}.csv"
 
     # Load pairs' data and compute intermediate variables
     pairs_data = compute_intermediate_vars(VIDEO)
 
     # Get pairs that pass the filters
-    pairs, area_filter = get_pairs(VIDEO, pairs_data, HIST_DIV)
-    min_area = area_filter if MIN_AREA == "dynamic" else MIN_AREA
+    pairs, area_filter = get_pairs(VIDEO, pairs_data, args.filter_separation, args.filter_range, args.filter_auc, args.hist_div)
+    min_area = area_filter if args.min_area == "dynamic" else float(args.min_area)
 
     # Pretty print
     print(f"\n{'':->50} VIDEO: {VIDEO.upper()} {'':->50}")
@@ -362,13 +375,13 @@ if __name__ == "__main__":
     median_predictions = median_predictions[:min_len]
 
     # Compute the rolling average for the predictions (instant & context)
-    predictions_instant, predictions_context = computeRollingAverages(median_predictions, INSTANT_WINDOW, CONTEXT_WINDOW)
+    predictions_instant, predictions_context = computeRollingAverages(median_predictions, instant_window, args.context_window)
 
     # Compute coarse final predictions (those where instant predictions are above the context)
     coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
     # Closing operation (dilate/erode) of the coarse final predictions
-    refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=CLOSING_KERNEL)
+    refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=closing_kernel)
 
     # Compute areas enclosed between the instant and context predictions
     areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
@@ -379,7 +392,7 @@ if __name__ == "__main__":
     print(list(events_detected.keys()))
 
     # Filter events by duration
-    events_filtered_by_duration = filterEvents(events=events_detected, min_duration=MIN_DURATION, min_area=0, reorder_by_relevance=False)
+    events_filtered_by_duration = filterEvents(events=events_detected, min_duration=args.min_duration, min_area=0, reorder_by_relevance=False)
     print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
     print(f"{list(events_filtered_by_duration.keys())}{Color.RESET}")
 
@@ -388,8 +401,8 @@ if __name__ == "__main__":
     std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
 
     # Get ablation metrics
-    compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=NUM_STEPS)
-    compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=NUM_STEPS)
+    compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=args.num_steps)
+    compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=args.num_steps)
 
     # Filter events by area
     events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=min_area, reorder_by_relevance=False)
@@ -427,10 +440,8 @@ if __name__ == "__main__":
     export_highlight_reel(
         events_detected=events_filtered,
         video_name=VIDEO,
-        fps=30,
-        # TODO: Remember to change below lines to for the final submission:
-        # frame_root="data/imgs",
-        frame_root="/mnt/Data/mrt/SportCLIP-OlympicHighlights/imgs",
-        frame_ext="png",
-        out_filename="highlight.mp4",
+        fps=args.fps,
+        frame_root=args.frame_root,
+        frame_ext=args.frame_ext,
+        out_filename=args.out_filename,
     )
