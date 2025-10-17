@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A high jumper accelerating along a curved approach toward the bar",
+        "An athlete planting and taking off explosively, beginning the Fosbury flop",
+        "A jumper arching over the bar with tight form and clearing cleanly",
+        "A precise bar clearance followed by a controlled landing on the mat",
+        "A first-time clearance at a new height with excellent timing and body control",
+        "A high jumper adjusting mid-air posture to avoid brushing the bar",
+        "A clutch make on a final attempt to stay in the competition",
+        "A smooth approach, powerful takeoff, and clean clearance at a challenging height"
+    ],
+    "not_highlight_sentences": [
+        "A high jumper pacing out and marking their approach on the apron",
+        "An athlete standing and visualizing the run-up before starting",
+        "Officials measuring and setting the bar height while athletes wait",
+        "A jumper sitting on the mat, resting and adjusting spikes",
+        "Light warm-up hops and run-throughs without an actual attempt",
+        "A coach providing brief instructions while the athlete nods",
+        "An athlete retrieving their belongings and walking back to the start area",
+        "Spectators and scoreboard views during breaks between attempts"
+    ]
+}

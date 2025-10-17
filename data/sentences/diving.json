@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A diver launching into the air, executing elegant flips and twists before entering the water seamlessly",
+        "A person performing an intricate diving maneuver, maintaining perfect control and posture",
+        "A high-speed, precise dive with controlled rotation and a smooth water entry",
+        "A diver executing a complex aerial twist, demonstrating agility and technical skill",
+        "A person in mid-air, rotating dynamically before breaking the water surface with minimal splash",
+        "A skilled athlete performing a synchronized series of rotations and flips before entering the water",
+        "A diver showcasing advanced aerial control, twisting and flipping effortlessly during descent",
+        "Diver executing precise, high-speed flips and twists with controlled power while in the air, during the dive"
+    ],
+    "not_highlight_sentences": [
+        "A diver standing on the platform, preparing for their turn",
+        "An athlete adjusting their stance and breathing before initiating the dive",
+        "A group of divers discussing techniques near the pool",
+        "A coach providing feedback while the diver listens attentively",
+        "A person climbing the ladder to get to the diving board",
+        "An athlete walking along the pool deck, stretching and preparing",
+        "A diver surfacing after the dive, calmly swimming towards the pool's edge",
+        "Diver relaxed, getting prepared to perform, close to the edge of the platform, greeting judges, walking, swimming, diving below the water"
+    ]
+}

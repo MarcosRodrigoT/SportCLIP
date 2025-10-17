@@ -3,4 +3,5 @@ venv/
 .vscode/
 
 data/
+!data/sentences/
 results/

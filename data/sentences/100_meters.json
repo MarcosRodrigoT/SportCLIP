@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A sprinter exploding out of the blocks at the gun, driving powerfully in the first meters",
+        "An athlete accelerating through the drive phase, staying low before rising to top speed",
+        "A runner at maximum velocity with rapid turnover and relaxed upper body form",
+        "A sprinter smoothly transitioning from drive phase to upright sprinting down the straight",
+        "A sprinter surging ahead of the field, maintaining form in the final 30 meters",
+        "Two athletes neck-and-neck approaching the finish line at full speed",
+        "A runner dipping at the finish line to secure the win",
+        "A clean start, sustained acceleration, and strong finish in a 100-meter sprint"
+    ],
+    "not_highlight_sentences": [
+        "Athletes standing behind the starting blocks, waiting for their heat",
+        "A sprinter adjusting block settings and checking foot placement",
+        "Athletes shaking out their legs and doing light drills before the start",
+        "Officials giving instructions while runners settle into their lanes",
+        "A false start review delay with athletes stepping away from the blocks",
+        "Runners walking back after the race, breathing heavily and recovering",
+        "A coach discussing technique with a sprinter near the track",
+        "Crowd shots, scoreboard views, and athletes waiting between heats"
+    ]
+}
