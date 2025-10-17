@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "An athlete executing a fast-paced series of flips and twists along the tumbling track",
+        "A competitor demonstrating explosive power, transitioning seamlessly between acrobatic moves",
+        "A person performing high-speed aerial rotations with perfect body control",
+        "An athlete showcasing a dynamic tumbling pass, blending flips and twists effortlessly",
+        "A tumbler reaching incredible heights during a complex flipping sequence",
+        "A competitor executing multiple backflips in succession with remarkable precision",
+        "An athlete performing an elegant combination of twisting and flipping movements at high velocity",
+        "Athlete performing powerful, high-speed flips and twists with explosive energy along a straight tumbling track"
+    ],
+    "not_highlight_sentences": [
+        "A tumbler standing at the start of the track, preparing for their run",
+        "A coach giving feedback to an athlete after their routine",
+        "A competitor stretching before their turn on the tumbling track",
+        "A group of athletes chatting and resting between routines",
+        "A tumbler walking off the mat after completing a pass",
+        "An athlete adjusting their uniform before stepping onto the track",
+        "A competitor watching others perform while waiting for their turn",
+        "Athlete relaxed, getting prepared to perform, greeting judges"
+    ]
+}

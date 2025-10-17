@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A pole vaulter sprinting down the track, planting the pole, and propelling into the air",
+        "An athlete executing a flawless pole vault, clearing the bar with perfect body control",
+        "A vaulter swinging upward, rotating their body to clear the bar with precision",
+        "A person vaulting high into the air, momentarily suspended before landing safely on the mat",
+        "An athlete demonstrating strength and technique as they push off the pole, reaching great heights",
+        "A pole vaulter soaring over the bar, arching their back for a clean clearance",
+        "A competitor successfully clearing the bar, landing smoothly with an impressive technique",
+        "Pole vaulter running, vaulting over the bar, jumping into the air and landing in a mat"
+    ],
+    "not_highlight_sentences": [
+        "A pole vaulter adjusting their grip on the pole before an attempt",
+        "An athlete waiting near the track, watching competitors perform",
+        "A coach giving last-minute instructions to a vaulter",
+        "A competitor retrieving their pole and preparing for their next vault",
+        "A person checking the pole's flexibility before beginning their approach",
+        "An athlete sitting on the mat, reflecting on their previous attempt",
+        "A pole vault official adjusting the bar height for the next attempt",
+        "Pole vaulter relaxed, greeting judges, adjusting the pole, celebrating"
+    ]
+}

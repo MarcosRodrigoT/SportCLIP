@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A javelin thrower accelerating through the run-up with controlled cross-steps",
+        "An athlete executing the impulse step and planting hard before release",
+        "A powerful javelin throw with full-body rotation and a clean spear release",
+        "The javelin flying in a long, stable trajectory before landing deep in the sector",
+        "A thrower delivering a season-best attempt with strong follow-through",
+        "An athlete maintaining perfect alignment and timing at the moment of release",
+        "A long throw that lands clearly past previous markers in the sector",
+        "A technically precise throw with explosive plant, whip-like arm, and balanced recovery"
+    ],
+    "not_highlight_sentences": [
+        "A javelin thrower measuring the run-up and marking steps on the track",
+        "An athlete adjusting grip and testing the balance of the javelin before the attempt",
+        "A thrower standing at the back of the runway, waiting for the official signal",
+        "Officials retrieving the javelin and placing distance markers in the field",
+        "A coach giving feedback while the athlete listens and nods",
+        "An athlete walking back calmly after a completed attempt",
+        "Light warm-up drills, arm swings, and footwork practice on the runway",
+        "Athletes chatting near the fence and watching other competitors throw"
+    ]
+}

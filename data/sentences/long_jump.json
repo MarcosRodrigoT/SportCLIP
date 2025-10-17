@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "An athlete sprinting down the runway before launching into the air, reaching for maximum distance",
+        "A long jumper executing a well-timed takeoff, soaring through the air before landing in the sand pit",
+        "A person accelerating down the track, generating momentum for an explosive jump",
+        "An athlete gliding through the air with extended arms and legs, preparing for a controlled landing",
+        "A competitor demonstrating strength and precision in a long jump attempt",
+        "A long jumper executing a perfect flight phase, reaching their peak height before descent",
+        "An athlete pushing off the ground with powerful force, achieving an impressive airborne moment",
+        "Athlete running, jumping into the air and landing in the sand pit"
+    ],
+    "not_highlight_sentences": [
+        "A long jumper adjusting their starting position on the runway",
+        "A person discussing jump techniques with a coach",
+        "An athlete waiting for their turn while observing competitors",
+        "A group of athletes standing near the sand pit, preparing for their jumps",
+        "A long jumper walking back after a completed attempt",
+        "A judge measuring the distance of a jump while athletes watch",
+        "A competitor stretching and warming up before their jump",
+        "Athlete relaxed, greeting judges, celebrating"
+    ]
+}

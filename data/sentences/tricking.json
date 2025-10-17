@@ -1,0 +1,22 @@
+{
+    "highlight_sentences": [
+        "A highlight",
+        "A person doing something interesting",
+        "Someone practicing dynamic movements",
+        "Someone is performing martial arts tricking",
+        "A skilled athlete executing kicks and spins",
+        "A person is performing some type of acrobatics",
+        "A person is clearly performing some type of acrobatics in a gym",
+        "Tricker performing a pass including flips, transitions and kicks"
+    ],
+    "not_highlight_sentences": [
+        "Not a highlight",
+        "A gym with people present",
+        "A group of people chatting and relaxing",
+        "Athletes preparing for their practice session",
+        "A group of people in a gym, ready to perform acrobatics but not at the moment",
+        "No one is currently performing acrobatics, people enjoy a moment of relaxed interaction",
+        "Trickers form a circle, chatting and enjoying a break, with no one currently performing acrobatics",
+        "Trickers relaxed in a gym, talking, walking, waiting for their turn to perform flips and tricks"
+    ]
+}
