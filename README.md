@@ -131,7 +131,7 @@ data/
 
 Sentence prompts are stored as JSON files in the **`data/sentences/`** directory. Each sport has its own JSON file containing `highlight_sentences` and `not_highlight_sentences`. To craft sport-specific prompts:
 
-1. Create a new JSON file in `data/sentences/` (e.g., `my_sport.json`)
+1. Create a new JSON file in `data/sentences/` (e.g., `long_jump.json`)
 2. Use the template below as a guide:
 
 ```json
@@ -164,8 +164,8 @@ Sentence prompts are stored as JSON files in the **`data/sentences/`** directory
 ```bash
 $ python multi_sentences.py \
         --root_dir data \
-        --video_name my_video \
-        --sentences_file data/sentences/my_sport.json \
+        --video_name long_jump \
+        --sentences_file data/sentences/long_jump.json \
         --context_window 600 \
         --min_duration 15 \
         --min_area 15 \

@@ -317,6 +317,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_steps", type=int, default=10, help="Step size for ablation metrics thresholds")
 
     # Export parameters
+    parser.add_argument("--export_highlight_reel", action="store_true", help="Export the highlight reel video (disabled by default)")
     parser.add_argument("--fps", type=int, default=30, help="Frames per second for exported highlight reel")
     # TODO: Remember to change below lines to for the final submission:
     # default frame_root should be "data/imgs"
@@ -436,12 +437,13 @@ if __name__ == "__main__":
     with open(f"results/{VIDEO}/Pairs used.txt", "w") as file:
         file.write(", ".join(map(str, pairs)))
 
-    # Save highlight reel
-    export_highlight_reel(
-        events_detected=events_filtered,
-        video_name=VIDEO,
-        fps=args.fps,
-        frame_root=args.frame_root,
-        frame_ext=args.frame_ext,
-        out_filename=args.out_filename,
-    )
+    # Save highlight reel (only if requested)
+    if args.export_highlight_reel:
+        export_highlight_reel(
+            events_detected=events_filtered,
+            video_name=VIDEO,
+            fps=args.fps,
+            frame_root=args.frame_root,
+            frame_ext=args.frame_ext,
+            out_filename=args.out_filename,
+        )
