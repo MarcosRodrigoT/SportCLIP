@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--root_dir", type=str, default="/mnt/Data/mrt/SportCLIP-OlympicHighlights", help="Root directory containing video data")
     parser.add_argument("--video_name", type=str, default="longjump_video1", help="Name of the video (without extension) to process")
     parser.add_argument("--sentences_file", type=str, default="data/sentences/long_jump.json", help="Path to JSON file containing highlight and non-highlight sentences")
+    parser.add_argument("--output_dir", type=str, default="results", help="Output directory for results (default: results)")
 
     # Window and filter parameters
     parser.add_argument("--context_window", type=int, default=600, help="Context window size for rolling average")
@@ -60,7 +61,7 @@ def main():
     not_highlight_sentences = sentences_data["not_highlight_sentences"]
 
     # Create results folder
-    results_folder = f"results/{args.video_name}"
+    results_folder = f"{args.output_dir}/{args.video_name}"
     os.makedirs(results_folder, exist_ok=True)
 
     # Get ground truth and empty predictions

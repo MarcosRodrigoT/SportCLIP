@@ -43,29 +43,35 @@ def compute_histogram_auc(hist_values):
     return auc
 
 
-def compute_intermediate_vars(vid_name):
+def compute_intermediate_vars(vid_name, results_dir="results"):
     intermediate_vars_dict = {x: None for x in range(0, 64)}
     f_scores = {x: None for x in range(0, 64)}
+
+    # If results_dir is the default "results", append vid_name. Otherwise, files are at the root level
+    if results_dir == "results":
+        base_path = f"{results_dir}/{vid_name}"
+    else:
+        base_path = results_dir
 
     for pair_num in range(0, 64):
         # Compute separation
         h_mean = None
         # Use the maximum of the KDE curves instead of the means
-        with open(f"results/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"{base_path}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
             h_kde = pickle.load(f)
-        with open(f"results/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
+        with open(f"{base_path}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
             nh_kde = pickle.load(f)
         h_mean = h_kde["x_coord"][np.argmax(h_kde["y_coord"])]
         separation = 0.5 - h_mean
 
         # Compute AUC
-        with open(f"results/{vid_name}/Scores - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"{base_path}/Scores - Pair{pair_num} - H.pkl", "rb") as f:
             h_scores = pickle.load(f)
         hist_values = create_histogram(h_scores)
         auc = compute_histogram_auc(hist_values)
 
         # Retrieve F-scores
-        with open(f"results/{vid_name}/{vid_name} - log.txt", "r") as f:
+        with open(f"{base_path}/{vid_name} - log.txt", "r") as f:
             log_data = f.read()
         sections = log_data.split("########################################################")
         for idx, section in enumerate(sections):
@@ -79,9 +85,9 @@ def compute_intermediate_vars(vid_name):
                 break
 
         # Compute the dynamic range as a percentage of the cumulative sum
-        with open(f"results/{vid_name}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
+        with open(f"{base_path}/KDE - Pair{pair_num} - H.pkl", "rb") as f:
             h_kde = pickle.load(f)
-        with open(f"results/{vid_name}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
+        with open(f"{base_path}/KDE - Pair{pair_num} - NH.pkl", "rb") as f:
             nh_kde = pickle.load(f)
 
         cum_sum_h_score = list(accumulate(h_kde["y_coord"]))
@@ -117,12 +123,18 @@ def filter_by_histogram(pairs_data, filter_separation, filter_range, filter_auc)
     return events_to_remove
 
 
-def filter_by_area(sport, hist_div=2, num_bins=50):
+def filter_by_area(sport, results_dir="results", hist_div=2, num_bins=50):
     # Initialize dictionary to store the mean area of all pairs
     mean_areas = {}
 
+    # If results_dir is the default "results", append sport. Otherwise, files are at the root level
+    if results_dir == "results":
+        base_path = f"{results_dir}/{sport}"
+    else:
+        base_path = results_dir
+
     for pair_num in range(64):
-        with open(f"results/{sport}/Mean area - Pair{pair_num}.pkl", "rb") as f:
+        with open(f"{base_path}/Mean area - Pair{pair_num}.pkl", "rb") as f:
             mean_area = pickle.load(f)
             mean_areas[pair_num] = mean_area
 
@@ -148,7 +160,7 @@ def filter_by_area(sport, hist_div=2, num_bins=50):
     return pairs_to_remove, area_filter
 
 
-def get_pairs(sport, pairs_data, filter_separation, filter_range, filter_auc, hist_div=2):
+def get_pairs(sport, pairs_data, filter_separation, filter_range, filter_auc, results_dir="results", hist_div=2):
     pairs_to_remove = set()
 
     # Filter by histogram
@@ -156,7 +168,7 @@ def get_pairs(sport, pairs_data, filter_separation, filter_range, filter_auc, hi
     pairs_to_remove.update(pairs_filtered_by_histogram)
 
     # Filter by area
-    pairs_filtered_by_area, area_filter = filter_by_area(sport, hist_div=hist_div)
+    pairs_filtered_by_area, area_filter = filter_by_area(sport, results_dir=results_dir, hist_div=hist_div)
     pairs_to_remove.update(pairs_filtered_by_area)
 
     # Return pairs
@@ -301,6 +313,7 @@ if __name__ == "__main__":
     # default video_name should be "long_jump"
     parser.add_argument("--dataset_dir", type=str, default="/mnt/Data/mrt/SportCLIP-OlympicHighlights", help="Root directory containing video data")
     parser.add_argument("--video_name", type=str, default="longjump_video1", help="Name of the video (without extension) to process")
+    parser.add_argument("--results_dir", type=str, default="results", help="Results directory containing intermediate outputs (default: results)")
 
     # Window and filter parameters
     parser.add_argument("--context_window", type=int, default=600, help="Context window size for rolling average")
@@ -334,20 +347,27 @@ if __name__ == "__main__":
     # Set up paths
     VIDEO = args.video_name
     GROUND_TRUTH = f"{args.dataset_dir}/{VIDEO}.csv"
+    RESULTS_DIR = args.results_dir
 
     # Load pairs' data and compute intermediate variables
-    pairs_data = compute_intermediate_vars(VIDEO)
+    pairs_data = compute_intermediate_vars(VIDEO, RESULTS_DIR)
 
     # Get pairs that pass the filters
-    pairs, area_filter = get_pairs(VIDEO, pairs_data, args.filter_separation, args.filter_range, args.filter_auc, args.hist_div)
+    pairs, area_filter = get_pairs(VIDEO, pairs_data, args.filter_separation, args.filter_range, args.filter_auc, RESULTS_DIR, args.hist_div)
     min_area = area_filter if args.min_area == "dynamic" else float(args.min_area)
 
     # Pretty print
     print(f"\n{'':->50} VIDEO: {VIDEO.upper()} {'':->50}")
 
     # Load highlight score predictions curve
+    # If RESULTS_DIR is the default "results", append VIDEO. Otherwise, files are at the root level
+    if RESULTS_DIR == "results":
+        base_path = f"{RESULTS_DIR}/{VIDEO}"
+    else:
+        base_path = RESULTS_DIR
+
     for pair in pairs_data.keys():
-        with open(f"results/{VIDEO}/Scores - Pair{pair} - H.pkl", "rb") as file:
+        with open(f"{base_path}/Scores - Pair{pair} - H.pkl", "rb") as file:
             pairs_data[pair]["h_scores"] = pickle.load(file)
 
     # Get ground truth and empty predictions
@@ -415,6 +435,15 @@ if __name__ == "__main__":
     print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
 
     # Plot predictions against the ground truth
+    # Note: plotGroundTruthVSPredictions prepends "results/" to fig_name
+    # For default results dir, use VIDEO subdirectory. Otherwise, use base_path minus "results/" prefix
+    if RESULTS_DIR == "results":
+        fig_path = f"{VIDEO}/Final result.png"
+    elif RESULTS_DIR.startswith("results/"):
+        fig_path = f"{RESULTS_DIR[8:]}/Final result.png"
+    else:
+        # If results_dir doesn't start with "results/", we can't use plotGroundTruthVSPredictions properly
+        fig_path = f"{VIDEO}/Final result.png"
     plotGroundTruthVSPredictions(
         frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
         ground_truth=ground_truth_list,
@@ -425,7 +454,7 @@ if __name__ == "__main__":
         refined_final_predictions=refined_final_predictions,
         areas=areas,
         events_filtered=events_filtered,
-        fig_name=f"{VIDEO}/Final result.png",
+        fig_name=fig_path,
         recall=recall,
         precision=precision,
         fscore=fscore,
@@ -434,7 +463,7 @@ if __name__ == "__main__":
     )
 
     # Save pairs that were used
-    with open(f"results/{VIDEO}/Pairs used.txt", "w") as file:
+    with open(f"{base_path}/Pairs used.txt", "w") as file:
         file.write(", ".join(map(str, pairs)))
 
     # Save highlight reel (only if requested)
