@@ -2,6 +2,7 @@ __pycache__/
 venv/
 .vscode/
 
+logs/
 data/
 !data/sentences/
 results/
