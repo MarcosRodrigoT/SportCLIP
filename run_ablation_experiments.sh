@@ -19,6 +19,28 @@ SPORTS_VIDEOS[pole_vault]="pole_vault"
 SPORTS_VIDEOS[tumbling]="tumbling"
 SPORTS_VIDEOS[tricking]="V1 V2 V3"
 
+# Sport-specific parameters
+declare -A CONTEXT_WINDOW
+CONTEXT_WINDOW[diving]=600
+CONTEXT_WINDOW[long_jump]=600
+CONTEXT_WINDOW[pole_vault]=600
+CONTEXT_WINDOW[tumbling]=600
+CONTEXT_WINDOW[tricking]=600
+
+declare -A MIN_DURATION
+MIN_DURATION[diving]=15
+MIN_DURATION[long_jump]=15
+MIN_DURATION[pole_vault]=15
+MIN_DURATION[tumbling]=15
+MIN_DURATION[tricking]=15
+
+declare -A MIN_AREA
+MIN_AREA[diving]=15
+MIN_AREA[long_jump]=15
+MIN_AREA[pole_vault]=15
+MIN_AREA[tumbling]=15
+MIN_AREA[tricking]=15
+
 # Number of sentence sets per sport (assumed to be 1-5)
 NUM_SETS=5
 
@@ -71,9 +93,9 @@ for sport in diving long_jump pole_vault tumbling tricking; do
                 --video_name "$video" \
                 --sentences_file "$sentences_file" \
                 --output_dir "$RESULTS_BASE" \
-                --context_window 600 \
-                --min_duration 15 \
-                --min_area 15 \
+                --context_window "${CONTEXT_WINDOW[$sport]}" \
+                --min_duration "${MIN_DURATION[$sport]}" \
+                --min_area "${MIN_AREA[$sport]}" \
                 --hist_sharey True \
                 --hist_scale_y True \
                 --draw_individual_plots False \
@@ -95,8 +117,8 @@ for sport in diving long_jump pole_vault tumbling tricking; do
                 --dataset_dir "$DATA_DIR" \
                 --video_name "$video" \
                 --results_dir "$result_dir" \
-                --context_window 600 \
-                --min_duration 15 \
+                --context_window "${CONTEXT_WINDOW[$sport]}" \
+                --min_duration "${MIN_DURATION[$sport]}" \
                 --min_area dynamic \
                 --filter_separation 0.1 \
                 --filter_range 0.4 \
