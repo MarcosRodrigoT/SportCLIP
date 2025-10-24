@@ -23,6 +23,7 @@ from utils import (
     compute_crossing_point,
     save_logs,
 )
+from timing_utils import get_tracker
 
 
 def main():
@@ -50,22 +51,30 @@ def main():
 
     args = parser.parse_args()
 
-    # Compute derived parameters
-    instant_window = int(args.context_window / 10)
-    closing_kernel = int(args.context_window / 10 + 1)
+    # Initialize timing tracker
+    tracker = get_tracker(log_file=f"{args.output_dir}/timing_log.json")
 
-    # Load sentences from JSON file
-    with open(args.sentences_file, "r") as f:
-        sentences_data = json.load(f)
-    highlight_sentences = sentences_data["highlight_sentences"]
-    not_highlight_sentences = sentences_data["not_highlight_sentences"]
+    # Extract sport name from sentences file for metadata
+    sport_name = os.path.basename(args.sentences_file).replace("_set_", "/set").replace(".json", "")
 
-    # Create results folder
-    results_folder = f"{args.output_dir}/{args.video_name}"
-    os.makedirs(results_folder, exist_ok=True)
+    with tracker.track("multi_sentences.py - Setup", {"video_name": args.video_name, "sport": sport_name}):
+        # Compute derived parameters
+        instant_window = int(args.context_window / 10)
+        closing_kernel = int(args.context_window / 10 + 1)
+
+        # Load sentences from JSON file
+        with open(args.sentences_file, "r") as f:
+            sentences_data = json.load(f)
+        highlight_sentences = sentences_data["highlight_sentences"]
+        not_highlight_sentences = sentences_data["not_highlight_sentences"]
+
+        # Create results folder
+        results_folder = f"{args.output_dir}/{args.video_name}"
+        os.makedirs(results_folder, exist_ok=True)
 
     # Get ground truth and empty predictions
-    ground_truth, predictions = createGrounTruth(annotations_file=os.path.join(args.root_dir, f"{args.video_name}.csv"))
+    with tracker.track("Load ground truth annotations", {"video_name": args.video_name, "sport": sport_name}):
+        ground_truth, predictions = createGrounTruth(annotations_file=os.path.join(args.root_dir, f"{args.video_name}.csv"))
 
     # Loop over the different sentences forming pairs
     pair_num = 0
@@ -78,18 +87,22 @@ def main():
             print(f"{Color.ORANGE}----------- Highlight sentence {h_sent_idx}:{' ': >6} -----------{Color.RESET}\n{h_sentence}")
             print(f"{Color.ORANGE}----------- Not a highlight sentence {nh_sent_idx}: -----------{Color.RESET}\n{nh_sentence}")
 
+            metadata = {"video_name": args.video_name, "sport": sport_name, "pair_num": pair_num}
+
             # Get class (text) embeddings and the clip model
-            classes = [h_sentence, nh_sentence]
-            class_embeddings, clip_model = createClassEmbeddings(classes=classes)
+            with tracker.track("Create class embeddings (sentences)", metadata):
+                classes = [h_sentence, nh_sentence]
+                class_embeddings, clip_model = createClassEmbeddings(classes=classes)
 
             # Get predictions
-            predictions = collectPredictions(
-                root_dir=args.root_dir,
-                video_name=args.video_name,
-                class_embeddings=class_embeddings,
-                model=clip_model,
-                predictions=predictions,
-            )
+            with tracker.track("Collect predictions (compute similarities)", metadata):
+                predictions = collectPredictions(
+                    root_dir=args.root_dir,
+                    video_name=args.video_name,
+                    class_embeddings=class_embeddings,
+                    model=clip_model,
+                    predictions=predictions,
+                )
 
             # Drop any frames that have no predictions (e.g., off-by-one last frame)
             if isinstance(predictions, dict):
@@ -101,79 +114,98 @@ def main():
                         ground_truth.pop(k, None)
 
             # Convert ground truth and predictions to lists
-            ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
-            predictions_list, sentences_score_hist = predictions_Dict2List(predictions_dict=predictions)
+            with tracker.track("Convert predictions to lists", metadata):
+                ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
+                predictions_list, sentences_score_hist = predictions_Dict2List(predictions_dict=predictions)
 
             # Compute the rolling average for the predictions (instant & context)
-            predictions_instant, predictions_context = computeRollingAverages(predictions_list, instant_window, args.context_window)
+            with tracker.track("Compute rolling averages", metadata):
+                predictions_instant, predictions_context = computeRollingAverages(predictions_list, instant_window, args.context_window)
 
             # Compute coarse final predictions (those where instant predictions are above the context)
-            coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+            with tracker.track("Compute coarse predictions", metadata):
+                coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
             # Closing operation (dilate/erode) of the coarse final predictions
-            refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=closing_kernel)
+            with tracker.track("Closing operation (dilate/erode)", metadata):
+                refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=closing_kernel)
 
             # Compute areas enclosed between the instant and context predictions
-            areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+            with tracker.track("Compute prediction areas", metadata):
+                areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
             # Collect events
-            events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
-            print_events(events_detected, color=Color.RED, message="Events detected")
+            with tracker.track("Detect events", metadata):
+                events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
+                print_events(events_detected, color=Color.RED, message="Events detected")
 
             # Filter events by duration
-            events_filtered_by_duration = filterEvents(events=events_detected, min_duration=args.min_duration, min_area=0, reorder_by_relevance=False)
-            print_events(events_detected, color=Color.GREEN, message="Events after filtering by duration")
+            with tracker.track("Filter events by duration", metadata):
+                events_filtered_by_duration = filterEvents(events=events_detected, min_duration=args.min_duration, min_area=0, reorder_by_relevance=False)
+                print_events(events_detected, color=Color.GREEN, message="Events after filtering by duration")
 
             # Compute detected events' statistics
-            mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
-            std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
+            with tracker.track("Compute event statistics", metadata):
+                mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
+                std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
 
-            # Save the mean event area
-            with open(f"{results_folder}/Mean area - Pair{pair_num}.pkl", "wb") as f:
-                pickle.dump(mean_area, f)
+                # Save the mean event area
+                with open(f"{results_folder}/Mean area - Pair{pair_num}.pkl", "wb") as f:
+                    pickle.dump(mean_area, f)
 
             # Filter events by area
-            events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=args.min_area, reorder_by_relevance=False)
-            print_events(events_detected, color=Color.GREEN, message="Events after filtering by area")
+            with tracker.track("Filter events by area", metadata):
+                events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=args.min_area, reorder_by_relevance=False)
+                print_events(events_detected, color=Color.GREEN, message="Events after filtering by area")
 
             # Obtain frame level results
-            recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
-            print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
+            with tracker.track("Compute frame-level results", metadata):
+                recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
+                print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
 
             # Plot predictions against the ground truth
             if args.draw_individual_plots:
-                plotGroundTruthVSPredictions(
-                    frames_to_plot=args.frames_to_plot,
-                    ground_truth=ground_truth_list,
-                    predictions=predictions_list,
-                    predictions_instant=predictions_instant,
-                    predictions_context=predictions_context,
-                    coarse_final_predictions=coarse_final_predictions,
-                    refined_final_predictions=refined_final_predictions,
-                    areas=areas,
-                    events_filtered=events_filtered,
-                    fig_name=f"{'/'.join(results_folder.split('/')[1:])}/{args.video_name} - binary - tmp.png",
-                    recall=recall,
-                    precision=precision,
-                    fscore=fscore,
-                    mean_area=mean_area,
-                    mean_std=std_area,
-                )
+                with tracker.track("Plot predictions vs ground truth", metadata):
+                    plotGroundTruthVSPredictions(
+                        frames_to_plot=args.frames_to_plot,
+                        ground_truth=ground_truth_list,
+                        predictions=predictions_list,
+                        predictions_instant=predictions_instant,
+                        predictions_context=predictions_context,
+                        coarse_final_predictions=coarse_final_predictions,
+                        refined_final_predictions=refined_final_predictions,
+                        areas=areas,
+                        events_filtered=events_filtered,
+                        fig_name=f"{'/'.join(results_folder.split('/')[1:])}/{args.video_name} - binary - tmp.png",
+                        recall=recall,
+                        precision=precision,
+                        fscore=fscore,
+                        mean_area=mean_area,
+                        mean_std=std_area,
+                    )
 
             # Draw histograms as individual distribution plots with KDE
-            draw_histograms(sentences_score_hist, pair_num, args.hist_scale_y, results_folder, args.video_name)
+            with tracker.track("Draw histograms", metadata):
+                draw_histograms(sentences_score_hist, pair_num, args.hist_scale_y, results_folder, args.video_name)
 
             # Compute the crossing point between the two distributions
-            compute_crossing_point(pair_num, results_folder)
+            with tracker.track("Compute crossing point", metadata):
+                compute_crossing_point(pair_num, results_folder)
 
             # Stitch the histograms and predictions together
-            stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=results_folder, video_name=args.video_name)
+            with tracker.track("Stitch images", metadata):
+                stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=results_folder, video_name=args.video_name)
 
             # Save a log of the experiments
-            save_logs(pair_num, h_sentence, nh_sentence, recall, precision, fscore, sentences_score_hist, results_folder, args.video_name)
+            with tracker.track("Save logs", metadata):
+                save_logs(pair_num, h_sentence, nh_sentence, recall, precision, fscore, sentences_score_hist, results_folder, args.video_name)
 
             # Move on to the next pair
             pair_num += 1
+
+    # Save timing data and print summary
+    tracker.save()
+    tracker.print_summary("multi_sentences.py Timing Summary")
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from utils import (
     print_frame_level_results,
     computeRollingAverages,
 )
+from timing_utils import get_tracker
 
 
 def create_histogram(scores):
@@ -340,6 +341,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Initialize timing tracker
+    tracker = get_tracker(log_file="results/ablation/timing_log.json")
+
     # Compute derived parameters
     instant_window = int(args.context_window / 10)
     closing_kernel = int(args.context_window / 10 + 1)
@@ -349,12 +353,19 @@ if __name__ == "__main__":
     GROUND_TRUTH = f"{args.dataset_dir}/{VIDEO}.csv"
     RESULTS_DIR = args.results_dir
 
+    # Extract sport name from results_dir for metadata
+    sport_name = os.path.basename(RESULTS_DIR).split("_")[0] if RESULTS_DIR != "results" else "unknown"
+
+    metadata = {"video_name": VIDEO, "sport": sport_name}
+
     # Load pairs' data and compute intermediate variables
-    pairs_data = compute_intermediate_vars(VIDEO, RESULTS_DIR)
+    with tracker.track("Compute intermediate variables (histogram stats)", metadata):
+        pairs_data = compute_intermediate_vars(VIDEO, RESULTS_DIR)
 
     # Get pairs that pass the filters
-    pairs, area_filter = get_pairs(VIDEO, pairs_data, args.filter_separation, args.filter_range, args.filter_auc, RESULTS_DIR, args.hist_div)
-    min_area = area_filter if args.min_area == "dynamic" else float(args.min_area)
+    with tracker.track("Filter pairs by histogram and area", metadata):
+        pairs, area_filter = get_pairs(VIDEO, pairs_data, args.filter_separation, args.filter_range, args.filter_auc, RESULTS_DIR, args.hist_div)
+        min_area = area_filter if args.min_area == "dynamic" else float(args.min_area)
 
     # Pretty print
     print(f"\n{'':->50} VIDEO: {VIDEO.upper()} {'':->50}")
@@ -366,15 +377,18 @@ if __name__ == "__main__":
     else:
         base_path = RESULTS_DIR
 
-    for pair in pairs_data.keys():
-        with open(f"{base_path}/Scores - Pair{pair} - H.pkl", "rb") as file:
-            pairs_data[pair]["h_scores"] = pickle.load(file)
+    with tracker.track("Load highlight scores from filtered pairs", metadata):
+        for pair in pairs_data.keys():
+            with open(f"{base_path}/Scores - Pair{pair} - H.pkl", "rb") as file:
+                pairs_data[pair]["h_scores"] = pickle.load(file)
 
     # Get ground truth and empty predictions
-    ground_truth, _ = createGrounTruth(annotations_file=GROUND_TRUTH)
+    with tracker.track("Load ground truth annotations", metadata):
+        ground_truth, _ = createGrounTruth(annotations_file=GROUND_TRUTH)
 
     # Compute median highlight score predictions
-    median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in pairs], axis=0).tolist()
+    with tracker.track("Compute median predictions", metadata):
+        median_predictions = np.median([pairs_data[pair]["h_scores"] for pair in pairs], axis=0).tolist()
 
     # Align ground truth with predictions length (handle off-by-one or missing frames)
     if isinstance(ground_truth, dict):
@@ -384,7 +398,8 @@ if __name__ == "__main__":
             ground_truth.pop(k, None)
 
     # Convert ground truth to list
-    ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
+    with tracker.track("Convert ground truth to list", metadata):
+        ground_truth_list = groundTruth_Dict2List(ground_truth_dict=ground_truth, skip_uncertainty=False)
 
     # Align lengths: handle annotation gaps or missing embeddings
     # Ground truth may have gaps (missing frames in annotations) or go beyond available predictions
@@ -396,43 +411,53 @@ if __name__ == "__main__":
     median_predictions = median_predictions[:min_len]
 
     # Compute the rolling average for the predictions (instant & context)
-    predictions_instant, predictions_context = computeRollingAverages(median_predictions, instant_window, args.context_window)
+    with tracker.track("Compute rolling averages", metadata):
+        predictions_instant, predictions_context = computeRollingAverages(median_predictions, instant_window, args.context_window)
 
     # Compute coarse final predictions (those where instant predictions are above the context)
-    coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+    with tracker.track("Compute coarse predictions", metadata):
+        coarse_final_predictions = [1 if pred_inst > pred_cont else 0 for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
     # Closing operation (dilate/erode) of the coarse final predictions
-    refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=closing_kernel)
+    with tracker.track("Closing operation (dilate/erode)", metadata):
+        refined_final_predictions = closingOperation(coarse_predictions=coarse_final_predictions, kernel_size=closing_kernel)
 
     # Compute areas enclosed between the instant and context predictions
-    areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
+    with tracker.track("Compute prediction areas", metadata):
+        areas = [max(pred_inst - pred_cont, 0) for pred_inst, pred_cont in zip(predictions_instant, predictions_context)]
 
     # Collect events
-    events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
-    print(f"{Color.RED}----------- Events detected -----------")
-    print(list(events_detected.keys()))
+    with tracker.track("Detect events", metadata):
+        events_detected = detectEvents(predictions=areas, masks=refined_final_predictions)
+        print(f"{Color.RED}----------- Events detected -----------")
+        print(list(events_detected.keys()))
 
     # Filter events by duration
-    events_filtered_by_duration = filterEvents(events=events_detected, min_duration=args.min_duration, min_area=0, reorder_by_relevance=False)
-    print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
-    print(f"{list(events_filtered_by_duration.keys())}{Color.RESET}")
+    with tracker.track("Filter events by duration", metadata):
+        events_filtered_by_duration = filterEvents(events=events_detected, min_duration=args.min_duration, min_area=0, reorder_by_relevance=False)
+        print(f"{Color.GREEN}----------- Events after filtering by duration -----------")
+        print(f"{list(events_filtered_by_duration.keys())}{Color.RESET}")
 
     # Compute detected events' statistics
-    mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
-    std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
+    with tracker.track("Compute event statistics", metadata):
+        mean_area = np.mean([d["area"] for d in events_filtered_by_duration.values()])
+        std_area = np.std([d["area"] for d in events_filtered_by_duration.values()])
 
     # Get ablation metrics
-    compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=args.num_steps)
-    compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=args.num_steps)
+    with tracker.track("Compute ablation metrics (frame & event level)", metadata):
+        compute_frame_level_metrics(predictions=events_filtered_by_duration, ground_truth=ground_truth_list, steps=args.num_steps)
+        compute_event_level_metrics(predictions=events_filtered_by_duration, ground_truth=GROUND_TRUTH, steps=args.num_steps)
 
     # Filter events by area
-    events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=min_area, reorder_by_relevance=False)
-    print(f"{Color.GREEN}----------- Events after filtering by area -----------")
-    print(f"{list(events_filtered.keys())}{Color.RESET}")
+    with tracker.track("Filter events by area", metadata):
+        events_filtered = filterEvents(events=events_filtered_by_duration, min_duration=0, min_area=min_area, reorder_by_relevance=False)
+        print(f"{Color.GREEN}----------- Events after filtering by area -----------")
+        print(f"{list(events_filtered.keys())}{Color.RESET}")
 
     # Obtain frame level results
-    recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
-    print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
+    with tracker.track("Compute final frame-level results", metadata):
+        recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
+        print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
 
     # Plot predictions against the ground truth
     # Note: plotGroundTruthVSPredictions prepends "results/" to fig_name
@@ -444,35 +469,43 @@ if __name__ == "__main__":
     else:
         # If results_dir doesn't start with "results/", we can't use plotGroundTruthVSPredictions properly
         fig_path = f"{VIDEO}/Final result.png"
-    plotGroundTruthVSPredictions(
-        frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
-        ground_truth=ground_truth_list,
-        predictions=median_predictions,
-        predictions_instant=predictions_instant,
-        predictions_context=predictions_context,
-        coarse_final_predictions=coarse_final_predictions,
-        refined_final_predictions=refined_final_predictions,
-        areas=areas,
-        events_filtered=events_filtered,
-        fig_name=fig_path,
-        recall=recall,
-        precision=precision,
-        fscore=fscore,
-        mean_area=mean_area,
-        mean_std=std_area,
-    )
+
+    with tracker.track("Plot final predictions vs ground truth", metadata):
+        plotGroundTruthVSPredictions(
+            frames_to_plot=[0, min(7500, list(ground_truth.keys())[-1])],
+            ground_truth=ground_truth_list,
+            predictions=median_predictions,
+            predictions_instant=predictions_instant,
+            predictions_context=predictions_context,
+            coarse_final_predictions=coarse_final_predictions,
+            refined_final_predictions=refined_final_predictions,
+            areas=areas,
+            events_filtered=events_filtered,
+            fig_name=fig_path,
+            recall=recall,
+            precision=precision,
+            fscore=fscore,
+            mean_area=mean_area,
+            mean_std=std_area,
+        )
 
     # Save pairs that were used
-    with open(f"{base_path}/Pairs used.txt", "w") as file:
-        file.write(", ".join(map(str, pairs)))
+    with tracker.track("Save pairs used", metadata):
+        with open(f"{base_path}/Pairs used.txt", "w") as file:
+            file.write(", ".join(map(str, pairs)))
 
     # Save highlight reel (only if requested)
     if args.export_highlight_reel:
-        export_highlight_reel(
-            events_detected=events_filtered,
-            video_name=VIDEO,
-            fps=args.fps,
-            frame_root=args.frame_root,
-            frame_ext=args.frame_ext,
-            out_filename=args.out_filename,
-        )
+        with tracker.track("Export highlight reel video", metadata):
+            export_highlight_reel(
+                events_detected=events_filtered,
+                video_name=VIDEO,
+                fps=args.fps,
+                frame_root=args.frame_root,
+                frame_ext=args.frame_ext,
+                out_filename=args.out_filename,
+            )
+
+    # Save timing data and print summary
+    tracker.save()
+    tracker.print_summary("summarize.py Timing Summary")

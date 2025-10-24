@@ -41,9 +41,6 @@ MIN_AREA[pole_vault]=15
 MIN_AREA[tumbling]=15
 MIN_AREA[tricking]=15
 
-# Number of sentence sets per sport (assumed to be 1-5)
-NUM_SETS=5
-
 echo "=========================================="
 echo "Starting Ablation Experiments"
 echo "=========================================="
@@ -58,20 +55,27 @@ for sport in diving long_jump pole_vault tumbling tricking; do
     # Get video names for this sport
     videos="${SPORTS_VIDEOS[$sport]}"
 
-    # Iterate over each sentence set
-    for set_num in $(seq 1 $NUM_SETS); do
+    # Automatically detect available sentence sets for this sport
+    # Extract set numbers from filenames, sort them numerically
+    available_sets=$(ls "$SENTENCES_DIR/${sport}_set_"*.json 2>/dev/null | \
+                     sed "s|.*${sport}_set_\([0-9]*\)\.json|\1|" | \
+                     sort -n)
+
+    if [ -z "$available_sets" ]; then
+        echo "WARNING: No sentence files found for sport: $sport"
+        echo "Skipping this sport..."
+        continue
+    fi
+
+    echo "Found sentence sets: $available_sets"
+
+    # Iterate over each available sentence set
+    for set_num in $available_sets; do
         echo ""
         echo "---------- Sentence Set $set_num ----------"
 
         # Set the sentence file path
         sentences_file="$SENTENCES_DIR/${sport}_set_${set_num}.json"
-
-        # Check if sentence file exists
-        if [ ! -f "$sentences_file" ]; then
-            echo "WARNING: Sentence file not found: $sentences_file"
-            echo "Skipping this set..."
-            continue
-        fi
 
         # Process each video for this sport
         for video in $videos; do
@@ -146,3 +150,21 @@ echo "=========================================="
 echo "All Ablation Experiments Completed!"
 echo "Results saved in: $RESULTS_BASE"
 echo "=========================================="
+
+echo ""
+echo "=========================================="
+echo "Generating Timing Summary..."
+echo "=========================================="
+
+# Generate comprehensive timing summary
+python -c "
+from timing_utils import aggregate_timing_logs
+aggregate_timing_logs(
+    log_file='$RESULTS_BASE/timing_log.json',
+    output_file='$RESULTS_BASE/timing_summary.txt'
+)
+"
+
+echo ""
+echo "Timing summary saved to: $RESULTS_BASE/timing_summary.txt"
+echo "Timing log saved to: $RESULTS_BASE/timing_log.json"
