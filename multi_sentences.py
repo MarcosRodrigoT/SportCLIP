@@ -19,6 +19,7 @@ from utils import (
     stitch_images,
     print_events,
     print_frame_level_results,
+    compute_and_save_kde,
     draw_histograms,
     compute_crossing_point,
     save_logs,
@@ -162,6 +163,10 @@ def main():
             with tracker.track("Compute frame-level results", metadata):
                 recall, precision, fscore = computeFrameLevelResults(ground_truth=ground_truth_list, events_detected=events_filtered)
                 print_frame_level_results(recall, precision, fscore, color=Color.CYAN)
+
+            # Always compute and save KDE data (needed for summarize.py)
+            with tracker.track("Compute and save KDE", metadata):
+                compute_and_save_kde(sentences_score_hist, pair_num, results_folder)
 
             # Plot predictions against the ground truth
             if args.draw_individual_plots:

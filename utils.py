@@ -590,6 +590,39 @@ def print_frame_level_results(recall, precision, fscore, color):
     print(f"{Color.RESET}")
 
 
+def compute_and_save_kde(sentences_score_hist, pair_num, results_folder):
+    """Compute and save KDE data without drawing plots."""
+    for sentence in sentences_score_hist.keys():
+        df = pd.DataFrame(sentences_score_hist[sentence], columns=["score"])
+
+        try:
+            distplot = sns.displot(df, bins=np.linspace(0, 1, 50), kde=True, legend=False)
+
+            # Retrieve the KDE data from the plot
+            ax = distplot.axes[0, 0]
+            line = ax.lines[0]
+            kde_x, kde_y = line.get_data()
+            plt.close()
+        except (np.linalg.LinAlgError, ValueError) as e:
+            # Handle case where KDE cannot be computed (e.g., all values are identical)
+            print(f"Warning: Could not compute KDE for sentence {sentence} in pair {pair_num}: {e}")
+            print(f"Using dummy KDE data (uniform distribution)")
+            kde_x = np.linspace(0, 1, 100)
+            kde_y = np.zeros_like(kde_x)
+            # Set a small peak at the mean value
+            mean_val = np.mean(sentences_score_hist[sentence])
+            closest_idx = np.argmin(np.abs(kde_x - mean_val))
+            kde_y[closest_idx] = 1.0
+
+        # Save the KDE data
+        if sentence == 0:
+            with open(f"{results_folder}/KDE - Pair{pair_num} - H.pkl", "wb") as f:
+                pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
+        else:
+            with open(f"{results_folder}/KDE - Pair{pair_num} - NH.pkl", "wb") as f:
+                pickle.dump({"x_coord": kde_x, "y_coord": kde_y}, f)
+
+
 def draw_histograms(sentences_score_hist, pair_num, hist_scale_y, results_folder, video_name):
     for sentence in sentences_score_hist.keys():
         df = pd.DataFrame(sentences_score_hist[sentence], columns=["score"])

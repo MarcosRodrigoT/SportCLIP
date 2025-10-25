@@ -4,6 +4,44 @@ Plot timing analysis from timing_log.json
 
 This script creates professional visualizations of computational costs
 for the SportCLIP pipeline, with normalization by video duration.
+
+HOW TIMINGS ARE COMPUTED:
+==========================
+
+1. Raw Timing Collection:
+   - Each component in the pipeline (e.g., "Create class embeddings", "Compute similarities")
+     is timed individually using Python's timing utilities
+   - For multi_sentences.py: Timings are recorded for EACH sentence pair processed
+   - For summarize.py: Timings are recorded once per video
+   - All timings include CPU usage and memory consumption
+
+2. Normalization:
+   - Raw timings vary based on video length (longer videos take more time to process)
+   - To enable fair comparison, timings are normalized to "seconds per minute of video"
+   - Formula: normalized_time = (raw_time / video_duration_seconds) x 60
+   - Video duration and FPS are extracted automatically using ffprobe
+
+3. Aggregation:
+   - For each video with multiple sentence sets (e.g., diving with sets 6-10):
+     * Timings across all sentence pairs are AVERAGED
+     * This gives you the "average time per sentence pair" for that video
+   - Across videos: Mean and standard deviation are computed for comparison
+
+4. Grouping:
+   - Components are grouped into categories (e.g., "Embeddings & Similarity",
+     "Post-Processing") for high-level visualization
+
+Example:
+--------
+If "Create class embeddings" took:
+  - Video A (3 min): 1.5s total for 64 pairs = ~0.023s per pair
+  - Video B (5 min): 2.5s total for 64 pairs = ~0.039s per pair
+
+Normalized (per minute of video):
+  - Video A: (1.5 / 180) x 60 = 0.5 s/min
+  - Video B: (2.5 / 300) x 60 = 0.5 s/min
+
+Both videos have the same normalized processing time despite different raw times!
 """
 
 import argparse
@@ -96,14 +134,7 @@ def get_video_metadata_ffprobe(video_path: str) -> Optional[Dict]:
     """
     try:
         # Run ffprobe to get video metadata
-        cmd = [
-            "ffprobe",
-            "-v", "quiet",
-            "-print_format", "json",
-            "-show_format",
-            "-show_streams",
-            video_path
-        ]
+        cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", video_path]
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
@@ -149,7 +180,7 @@ def find_video_file(video_name: str, data_dir: str) -> Optional[str]:
     Find the video file for a given video name.
     Searches for common video extensions in the data directory.
     """
-    extensions = [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+    extensions = [".mp4", ".avi", ".mov", ".mkv", ".webm", ".mpeg"]
 
     for ext in extensions:
         video_path = os.path.join(data_dir, f"{video_name}{ext}")
@@ -172,25 +203,17 @@ def get_video_metadata(video_name: str, data_dir: str) -> Dict:
     video_path = find_video_file(video_name, data_dir)
 
     if not video_path:
-        raise FileNotFoundError(
-            f"Could not find video file for '{video_name}' in '{data_dir}'. "
-            f"Searched for extensions: .mp4, .avi, .mov, .mkv, .webm"
-        )
+        raise FileNotFoundError(f"Could not find video file for '{video_name}' in '{data_dir}'. Searched for extensions: .mp4, .avi, .mov, .mkv, .webm, .mpeg")
 
     # Try to probe video file
     metadata = get_video_metadata_ffprobe(video_path)
 
     if not metadata:
-        raise RuntimeError(
-            f"Failed to extract metadata from video '{video_path}' using ffprobe. "
-            f"Ensure ffprobe is installed and the video file is valid."
-        )
+        raise RuntimeError(f"Failed to extract metadata from video '{video_path}' using ffprobe. Ensure ffprobe is installed and the video file is valid.")
 
     # Cache and return metadata
     VIDEO_METADATA[video_name] = metadata
-    print(f"Loaded metadata for '{video_name}': "
-          f"{metadata['duration']:.1f}s @ {metadata['fps']:.2f}fps "
-          f"({metadata['frame_count']} frames)")
+    print(f"Loaded metadata for '{video_name}': {metadata['duration']:.1f}s @ {metadata['fps']:.2f}fps ({metadata['frame_count']} frames)")
     return metadata
 
 
@@ -329,9 +352,8 @@ def plot_per_video_timings(df: pd.DataFrame, output_file: str):
     # Pivot for stacked bar chart
     pivot_df = video_group_df.pivot(index="video_name", columns="group", values="normalized_duration").fillna(0)
 
-    # Sort videos by total time
-    pivot_df["total"] = pivot_df.sum(axis=1)
-    pivot_df = pivot_df.sort_values("total", ascending=False).drop("total", axis=1)
+    # Sort videos alphabetically (case-insensitive: diving, long_jump, pole_vault, tumbling, V1, V2, V3)
+    pivot_df = pivot_df.sort_index(key=lambda x: x.str.lower())
 
     # Create figure
     fig, ax = plt.subplots(figsize=(14, 8))
@@ -416,23 +438,42 @@ def plot_group_pie_chart(df: pd.DataFrame, output_file: str):
     # Sort by time
     group_df = group_df.sort_values("normalized_duration", ascending=False)
 
-    # Create figure
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Create figure with more space for legend
+    fig, ax = plt.subplots(figsize=(14, 10))
 
-    # Create pie chart
+    # Create pie chart - only show labels for slices > 3%
     colors = sns.color_palette(STYLE_CONFIG["palette"], n_colors=len(group_df))
+    total = group_df["normalized_duration"].sum()
+
+    def label_func(pct, group_name):
+        # Only show label if slice is > 3%
+        if pct > 3.0:
+            return group_name
+        return ""
+
+    def autopct_func(pct):
+        # Only show percentage if slice is > 3%
+        if pct > 3.0:
+            return f"{pct:.1f}%"
+        return ""
+
     wedges, texts, autotexts = ax.pie(
         group_df["normalized_duration"],
-        labels=group_df["group"],
-        autopct=lambda pct: f'{pct:.1f}%\n({pct/100*group_df["normalized_duration"].sum():.1f}s)',
+        labels=[label_func(100 * val / total, name) for val, name in zip(group_df["normalized_duration"], group_df["group"])],
+        autopct=autopct_func,
         startangle=90,
         colors=colors,
-        textprops={"fontsize": 11, "fontweight": "bold"},
+        textprops={"fontsize": 12, "fontweight": "bold"},
         wedgeprops={"edgecolor": "white", "linewidth": 2},
+        pctdistance=0.85,
     )
 
     # Styling
     ax.set_title("Distribution of Processing Time by Component Group\nNormalized average across all videos", fontsize=16, fontweight="bold", pad=20)
+
+    # Add legend with all groups and their percentages
+    legend_labels = [f"{row['group']}: {100*row['normalized_duration']/total:.1f}% ({row['normalized_duration']:.1f}s)" for _, row in group_df.iterrows()]
+    ax.legend(legend_labels, title="Component Groups", bbox_to_anchor=(1.3, 1), loc="upper left", frameon=True, fancybox=True, shadow=True, fontsize=11)
 
     plt.tight_layout()
 
@@ -464,6 +505,9 @@ def plot_top_components_comparison(df: pd.DataFrame, output_file: str, top_n: in
     # Create grouped bar chart
     pivot_df = filtered_df.pivot(index="component", columns="video_name", values="normalized_duration").fillna(0)
 
+    # Sort columns (videos) alphabetically (case-insensitive) for consistent legend ordering
+    pivot_df = pivot_df[sorted(pivot_df.columns, key=str.lower)]
+
     pivot_df.plot(kind="bar", ax=ax, colormap="tab20", edgecolor="black", linewidth=0.5, width=0.8)
 
     # Styling
@@ -487,32 +531,11 @@ def plot_top_components_comparison(df: pd.DataFrame, output_file: str, top_n: in
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Create professional timing analysis plots for SportCLIP pipeline"
-    )
-    parser.add_argument(
-        "timing_log",
-        type=str,
-        help="Path to timing_log.json file"
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="timing_plots",
-        help="Output directory for plots (default: timing_plots)"
-    )
-    parser.add_argument(
-        "--data-dir",
-        type=str,
-        default=DEFAULT_DATA_DIR,
-        help=f"Data directory containing video files (default: {DEFAULT_DATA_DIR})"
-    )
-    parser.add_argument(
-        "--top-n",
-        type=int,
-        default=10,
-        help="Number of top components to show in comparison plot (default: 10)"
-    )
+    parser = argparse.ArgumentParser(description="Create professional timing analysis plots for SportCLIP pipeline")
+    parser.add_argument("timing_log", type=str, help="Path to timing_log.json file")
+    parser.add_argument("--output-dir", type=str, default="timing_plots", help="Output directory for plots (default: timing_plots)")
+    parser.add_argument("--data-dir", type=str, default=DEFAULT_DATA_DIR, help=f"Data directory containing video files (default: {DEFAULT_DATA_DIR})")
+    parser.add_argument("--top-n", type=int, default=10, help="Number of top components to show in comparison plot (default: 10)")
 
     args = parser.parse_args()
 
