@@ -44,9 +44,9 @@ def main():
     parser.add_argument("--min_area", type=int, default=15, help="Minimum area for event filtering")
 
     # Plotting parameters
-    parser.add_argument("--hist_sharey", type=bool, default=True, help="Share y axis among histplots when drawing multiple in a single figure")
-    parser.add_argument("--hist_scale_y", type=bool, default=True, help="True -> maximum y-axis set dynamically. False -> set to the number of video frames")
-    parser.add_argument("--draw_individual_plots", type=bool, default=True, help="Whether to draw individual plots")
+    parser.add_argument("--hist_sharey", action="store_true", default=True, help="Share y axis among histplots when drawing multiple in a single figure")
+    parser.add_argument("--hist_scale_y", action="store_true", default=True, help="True -> maximum y-axis set dynamically. False -> set to the number of video frames")
+    parser.add_argument("--draw_individual_plots", action="store_true", default=False, help="Whether to draw individual plots")
     parser.add_argument("--frames_to_plot", type=int, nargs=2, default=[0, 7500], help="Frame range to plot [start, end]")
 
     args = parser.parse_args()
@@ -184,17 +184,17 @@ def main():
                         mean_std=std_area,
                     )
 
-            # Draw histograms as individual distribution plots with KDE
-            with tracker.track("Draw histograms", metadata):
-                draw_histograms(sentences_score_hist, pair_num, args.hist_scale_y, results_folder, args.video_name)
+                # Draw histograms as individual distribution plots with KDE
+                with tracker.track("Draw histograms", metadata):
+                    draw_histograms(sentences_score_hist, pair_num, args.hist_scale_y, results_folder, args.video_name)
 
-            # Compute the crossing point between the two distributions
-            with tracker.track("Compute crossing point", metadata):
-                compute_crossing_point(pair_num, results_folder)
+                # Compute the crossing point between the two distributions
+                with tracker.track("Compute crossing point", metadata):
+                    compute_crossing_point(pair_num, results_folder)
 
-            # Stitch the histograms and predictions together
-            with tracker.track("Stitch images", metadata):
-                stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=results_folder, video_name=args.video_name)
+                # Stitch the histograms and predictions together
+                with tracker.track("Stitch images", metadata):
+                    stitch_images(pair_num=pair_num, highlight_idx=h_sent_idx, non_highlight_idx=nh_sent_idx, results_folder=results_folder, video_name=args.video_name)
 
             # Save a log of the experiments
             with tracker.track("Save logs", metadata):

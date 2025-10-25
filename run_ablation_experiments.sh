@@ -100,9 +100,8 @@ for sport in diving long_jump pole_vault tumbling tricking; do
                 --context_window "${CONTEXT_WINDOW[$sport]}" \
                 --min_duration "${MIN_DURATION[$sport]}" \
                 --min_area "${MIN_AREA[$sport]}" \
-                --hist_sharey True \
-                --hist_scale_y True \
-                --draw_individual_plots False \
+                --hist_sharey \
+                --hist_scale_y \
                 --frames_to_plot 0 7500
 
             if [ $? -ne 0 ]; then
