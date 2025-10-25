@@ -149,7 +149,7 @@ def find_video_file(video_name: str, data_dir: str) -> Optional[str]:
     Find the video file for a given video name.
     Searches for common video extensions in the data directory.
     """
-    extensions = [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+    extensions = [".mp4", ".avi", ".mov", ".mkv", ".webm", ".mpeg"]
 
     for ext in extensions:
         video_path = os.path.join(data_dir, f"{video_name}{ext}")
@@ -174,7 +174,7 @@ def get_video_metadata(video_name: str, data_dir: str) -> Dict:
     if not video_path:
         raise FileNotFoundError(
             f"Could not find video file for '{video_name}' in '{data_dir}'. "
-            f"Searched for extensions: .mp4, .avi, .mov, .mkv, .webm"
+            f"Searched for extensions: .mp4, .avi, .mov, .mkv, .webm, .mpeg"
         )
 
     # Try to probe video file
