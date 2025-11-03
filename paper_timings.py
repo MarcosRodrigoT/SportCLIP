@@ -23,46 +23,52 @@ from collections import defaultdict
 # Note: Using ordered dict to control legend order in visualizations
 from collections import OrderedDict
 
-PAPER_COMPONENT_MAPPING = OrderedDict([
-    ("Embedding computation", [
-        "Create class embeddings (sentences)",
-    ]),
-    ("Similarity computation", [
-        "Collect predictions (compute similarities)",
-        "Compute rolling averages",  # Processes all frames
-        "Compute and save KDE",       # Processes all frames
-    ]),
-    ("Sentence filtering", [
-        "Filter events by duration",
-        "Filter events by area",
-    ]),
-    ("Post-processing", [
-        "Compute coarse predictions",
-        "Closing operation (dilate/erode)",
-        "Compute prediction areas",
-        "Detect events",
-        "Compute event statistics",
-    ]),
-])
+PAPER_COMPONENT_MAPPING = OrderedDict(
+    [
+        (
+            "Embedding computation",
+            [
+                "Create class embeddings (sentences)",
+            ],
+        ),
+        (
+            "Similarity computation",
+            [
+                "Collect predictions (compute similarities)",
+            ],
+        ),
+        (
+            "Sentence filtering",
+            [
+                "Filter pairs by histogram and area",
+            ],
+        ),
+        (
+            "Post-processing",
+            [
+                # "Compute rolling averages",  # Per-frame but negligible (~0.016 ms/frame), excluded for simplicity
+                "Compute coarse predictions",
+                "Closing operation (dilate/erode)",
+                "Compute prediction areas",
+                "Detect events",
+                "Compute event statistics",
+                "Filter events by duration",
+                "Filter events by area",
+            ],
+        ),
+    ]
+)
 
 # Component units of work (for normalization in Table V2)
 COMPONENT_UNITS = {
     "Embedding computation": "per_run",  # One execution per run (not per pair)
-    "Similarity computation": "per_frame",  # Processes all frames in video
-    "Sentence filtering": "per_pair",  # One execution per sentence pair
-    "Post-processing": "per_pair",  # One execution per sentence pair
+    "Similarity computation": "per_frame",  # Processes all frames in video (per pair)
+    "Sentence filtering": "per_pair",  # One execution per sentence pair (filters pairs, not frames)
+    "Post-processing": "per_pair",  # Constant time operations (~10ms) regardless of video length
 }
 
 # Frame counts for each video (from _gt_3classes.csv last frame)
-VIDEO_FRAME_COUNTS = {
-    'diving': 8781,
-    'long_jump': 4230,
-    'pole_vault': 4710,
-    'tumbling': 18540,
-    'V1': 37745,
-    'V2': 39593,
-    'V3': 18250
-}
+VIDEO_FRAME_COUNTS = {"diving": 8781, "long_jump": 4230, "pole_vault": 4710, "tumbling": 18540, "V1": 37745, "V2": 39593, "V3": 18250}
 
 # Components to EXCLUDE from analysis (not relevant for paper)
 EXCLUDED_COMPONENTS = [
@@ -194,13 +200,7 @@ def compute_per_unit_statistics(df: pd.DataFrame) -> pd.DataFrame:
             std_val = np.std(times_ms, ddof=1) if len(times_ms) > 1 else 0
             unit_str = "ms/pair"
 
-        stats_list.append({
-            "paper_component": paper_comp,
-            "mean": mean_val,
-            "std": std_val,
-            "unit": unit_str,
-            "count": len(comp_data)
-        })
+        stats_list.append({"paper_component": paper_comp, "mean": mean_val, "std": std_val, "unit": unit_str, "count": len(comp_data)})
 
     stats = pd.DataFrame(stats_list)
 
@@ -381,41 +381,55 @@ def generate_markdown_table_v2(stats_per_unit: pd.DataFrame, output_file: str):
     lines.append("**Computational cost breakdown:**")
     lines.append("")
 
-    # Track components by execution frequency
-    per_run_total = 0.0
-    per_pair_total = 0.0
+    # Track components separately for clearer formula
+    embedding_time = 0.0
+    similarity_time_per_pair = 0.0
+    filtering_time_per_pair = 0.0
+    postproc_time_per_pair = 0.0
 
     for _, row in stats_per_unit.iterrows():
         paper_comp = row["paper_component"]
         mean = row["mean"]
         unit = row["unit"]
 
-        if unit == "ms/frame":
-            # Multiply by total frames - this is per pair!
-            cost = mean * 1800 / 1000  # Convert to seconds
-            lines.append(f"- **{paper_comp}**: {mean:.4f} ms/frame × 1,800 frames = {cost:.3f} s/pair")
-            per_pair_total += cost
-        elif unit == "ms":
-            # Per-run: executed once
-            cost = mean / 1000  # Convert to seconds
-            lines.append(f"- **{paper_comp}**: {mean:.2f} ms (once per run) = {cost:.3f} s")
-            per_run_total += cost
-        else:  # ms/pair
-            cost = mean / 1000  # Convert to seconds
-            lines.append(f"- **{paper_comp}**: {mean:.2f} ms/pair = {cost:.3f} s/pair")
-            per_pair_total += cost
+        if paper_comp == "Embedding computation":
+            embedding_time = mean / 1000  # Convert to seconds
+            lines.append(f"- **{paper_comp}**: {mean:.2f} ms (once per run) = {embedding_time:.3f} s")
+        elif paper_comp == "Similarity computation":
+            # This is ms/frame, multiply by frames to get time per pair
+            time_per_pair = (mean * 1800) / 1000
+            similarity_time_per_pair = time_per_pair
+            lines.append(f"- **{paper_comp}**: {mean:.4f} ms/frame × 1,800 frames = {time_per_pair:.3f} s/pair")
+        elif paper_comp == "Sentence filtering":
+            time_per_pair = mean / 1000
+            filtering_time_per_pair = time_per_pair
+            lines.append(f"- **{paper_comp}**: {mean:.2f} ms/pair = {time_per_pair:.3f} s/pair")
+        elif paper_comp == "Post-processing":
+            time_per_pair = mean / 1000
+            postproc_time_per_pair = time_per_pair
+            lines.append(f"- **{paper_comp}**: {mean:.2f} ms/pair = {time_per_pair:.3f} s/pair")
 
     lines.append("")
-    lines.append("**Total computational cost:**")
+    lines.append("**Total computational cost formula:**")
     lines.append("")
+    lines.append(f"```")
+    lines.append(f"Total = Embedding (once)")
+    lines.append(f"      + (Similarity × frames × pairs)")
+    lines.append(f"      + (Filtering × pairs)")
+    lines.append(f"      + (Post-processing × pairs)")
+    lines.append(f"")
+    lines.append(f"Total = {embedding_time:.3f} s")
+    lines.append(f"      + ({similarity_time_per_pair / 1800:.6f} s/frame × 1,800 frames × 64 pairs)")
+    lines.append(f"      + ({filtering_time_per_pair:.3f} s/pair × 64 pairs)")
+    lines.append(f"      + ({postproc_time_per_pair:.3f} s/pair × 64 pairs)")
+    lines.append(f"")
 
-    # Calculate total: per_run (once) + per_pair * 64
-    total_time = per_run_total + (per_pair_total * 64)
+    # Calculate total
+    total_time = embedding_time + (similarity_time_per_pair * 64) + (filtering_time_per_pair * 64) + (postproc_time_per_pair * 64)
 
-    lines.append(f"- Embedding computation (once): {per_run_total:.3f} s")
-    lines.append(f"- Per-pair components × 64 pairs: {per_pair_total:.3f} s/pair × 64 = {per_pair_total * 64:.2f} s")
-    lines.append("")
-    lines.append(f"**Total: {total_time:.2f} seconds = {total_time / 60:.2f} minutes**")
+    lines.append(f"Total = {embedding_time:.3f} s + {similarity_time_per_pair * 64:.2f} s + {filtering_time_per_pair * 64:.2f} s + {postproc_time_per_pair * 64:.2f} s")
+    lines.append(f"Total = {total_time:.2f} s = {total_time / 60:.2f} minutes")
+    lines.append(f"```")
     lines.append("")
 
     # Additional video length estimates
@@ -425,8 +439,8 @@ def generate_markdown_table_v2(stats_per_unit: pd.DataFrame, output_file: str):
     lines.append("")
 
     # Get per-frame and per-pair components separately for different video lengths
-    similarity_per_frame_ms = None
-    per_pair_without_similarity_ms = 0.0
+    per_frame_ms_total = 0.0  # Sum of all per-frame components (Similarity + Post-processing)
+    per_pair_ms_total = 0.0   # Sum of all per-pair components (Filtering)
 
     for _, row in stats_per_unit.iterrows():
         paper_comp = row["paper_component"]
@@ -434,30 +448,30 @@ def generate_markdown_table_v2(stats_per_unit: pd.DataFrame, output_file: str):
         unit = row["unit"]
 
         if unit == "ms/frame":
-            similarity_per_frame_ms = mean
+            per_frame_ms_total += mean  # Accumulate all per-frame components
         elif unit == "ms/pair":
-            per_pair_without_similarity_ms += mean
+            per_pair_ms_total += mean   # Accumulate all per-pair components
 
     # Compute for different video lengths
     video_durations = [
-        (1, 1 * 60 * 30),      # 1 minute
-        (5, 5 * 60 * 30),      # 5 minutes
-        (10, 10 * 60 * 30),    # 10 minutes
-        (60, 60 * 60 * 30),    # 1 hour
+        (1, 1 * 60 * 30),  # 1 minute
+        (5, 5 * 60 * 30),  # 5 minutes
+        (10, 10 * 60 * 30),  # 10 minutes
+        (60, 60 * 60 * 30),  # 1 hour
     ]
 
-    lines.append("| Video Length | Total Frames | Similarity Time | Other Per-Pair Time | Total Time |")
-    lines.append("|--------------|--------------|-----------------|---------------------|------------|")
+    lines.append("| Video Length | Total Frames | Similarity (×64 pairs) | Filtering + Post-proc (×64 pairs) | Total Time |")
+    lines.append("|--------------|--------------|------------------------|-----------------------------------|------------|")
 
     for duration_min, total_frames in video_durations:
-        # Similarity: per_frame_ms * total_frames * 64 pairs / 1000 (to seconds)
-        similarity_time = (similarity_per_frame_ms * total_frames * 64) / 1000
+        # Per-frame components: only similarity * total_frames * 64 pairs / 1000
+        per_frame_time = (per_frame_ms_total * total_frames * 64) / 1000
 
-        # Other per-pair: (filtering + post-processing) * 64 / 1000
-        other_per_pair_time = (per_pair_without_similarity_ms * 64) / 1000
+        # Per-pair components: (filtering + post-processing) * 64 / 1000
+        per_pair_time = (per_pair_ms_total * 64) / 1000
 
-        # Total: embedding (once) + similarity + other per-pair
-        total = per_run_total + similarity_time + other_per_pair_time
+        # Total: embedding (once) + per-frame + per-pair
+        total = embedding_time + per_frame_time + per_pair_time
 
         if duration_min == 60:
             duration_str = "1 hour"
@@ -469,7 +483,7 @@ def generate_markdown_table_v2(stats_per_unit: pd.DataFrame, output_file: str):
             else:
                 total_str = f"{total / 60:.1f} min"
 
-        lines.append(f"| {duration_str} | {total_frames:,} | {similarity_time:.1f} s | {other_per_pair_time:.1f} s | {total_str} |")
+        lines.append(f"| {duration_str} | {total_frames:,} | {per_frame_time:.1f} s | {per_pair_time:.1f} s | {total_str} |")
 
     lines.append("")
     lines.append("**Note:** Times scale linearly with the number of frames (video length) due to similarity computation.")
