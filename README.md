@@ -201,6 +201,7 @@ The **`summarize.py`** script accepts command-line arguments to customize the hi
 $ python summarize.py \
         --dataset_dir data \
         --video_name long_jump \
+        --results_dir results \
         --context_window 600 \
         --min_duration 15 \
         --min_area dynamic \
@@ -208,14 +209,19 @@ $ python summarize.py \
         --filter_range 0.4 \
         --filter_auc 0.4 \
         --hist_div 2 \
+        --num_steps 10 \
+        --export_highlight_reel \
+        --export_mode individual \
         --fps 30 \
         --frame_root data/imgs \
+        --frame_ext png \
         --out_filename highlight.mp4
 ```
 
 **Key parameters:**
-- `--dataset_dir`: Root directory containing video data and annotations
-- `--video_name`: Name of the video (without extension) to process
+- `--dataset_dir`: Root directory containing video data and annotations (default: data)
+- `--video_name`: Name of the video (without extension) to process (default: long_jump)
+- `--results_dir`: Results directory containing intermediate outputs (default: results)
 - `--context_window`: Context window size for rolling average (default: 600)
 - `--min_duration`: Minimum duration (in frames) for event filtering (default: 15)
 - `--min_area`: Use `"dynamic"` for automatic threshold or a numeric value (e.g., `15`)
@@ -224,6 +230,8 @@ $ python summarize.py \
 - `--filter_auc`: Maximum AUC threshold for histogram filtering (default: 0.4)
 - `--hist_div`: Histogram division factor for area filtering (default: 2)
 - `--num_steps`: Step size for ablation metrics thresholds (default: 10)
+- `--export_highlight_reel`: Export the highlight reel video (disabled by default)
+- `--export_mode`: Export mode: `"individual"` for separate videos per highlight, `"combined"` for single video (default: individual)
 - `--fps`: Frames per second for exported highlight reel (default: 30)
 - `--frame_root`: Root directory containing extracted frames (default: data/imgs)
 - `--frame_ext`: Frame image file extension (default: png)

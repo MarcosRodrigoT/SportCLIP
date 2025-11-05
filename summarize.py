@@ -117,9 +117,7 @@ def compute_intermediate_vars(vid_name, results_dir="results"):
 
 def filter_by_histogram(pairs_data, filter_separation, filter_range, filter_auc):
     # Filter by separation, range, and AUC
-    events_to_remove = [
-        pair_num for pair_num, vars in pairs_data.items() if np.abs(vars["separation"]) < filter_separation or vars["range"] < filter_range or vars["auc"] > filter_auc
-    ]
+    events_to_remove = [pair_num for pair_num, vars in pairs_data.items() if np.abs(vars["separation"]) < filter_separation or vars["range"] < filter_range or vars["auc"] > filter_auc]
 
     return events_to_remove
 
@@ -269,7 +267,7 @@ def compute_event_level_metrics(predictions, ground_truth, steps=10):
         print(f"{Color.RESET}")
 
 
-def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/imgs", frame_ext="png", out_filename="highlight.mp4"):
+def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/imgs", frame_ext="png", out_filename="highlight.mp4", export_mode="individual"):
     # Make sure there are events detected
     if not events_detected:
         raise ValueError("events_detected is empty - nothing to export.")
@@ -277,7 +275,6 @@ def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/
     # Output path
     out_dir = os.path.join("results", video_name)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, out_filename)
 
     # Determine frame size from the very first frame
     first_event = min(events_detected.values(), key=lambda e: e["frames"][0])
@@ -288,18 +285,35 @@ def export_highlight_reel(events_detected, video_name, fps=30, frame_root="data/
         raise FileNotFoundError(f"Cannot read sample frame: {sample_path}")
     height, width = frame_sample.shape[:2]
 
-    # OpenCV writer
+    # OpenCV writer setup
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # safe cross-platform codec
-    writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
-    # Write frames in chronological order
-    for event in sorted(events_detected.values(), key=lambda e: e["frames"][0]):
-        for idx in event["frames"]:
-            img_path = os.path.join(frame_root, video_name, f"frame{idx:05d}.{frame_ext}")
-            frame = cv2.imread(img_path)
-            if frame is not None:
-                writer.write(frame)
-    writer.release()
+    if export_mode == "combined":
+        # Export all highlights to a single video
+        out_path = os.path.join(out_dir, out_filename)
+        writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+
+        # Write frames in chronological order
+        for event in sorted(events_detected.values(), key=lambda e: e["frames"][0]):
+            for idx in event["frames"]:
+                img_path = os.path.join(frame_root, video_name, f"frame{idx:05d}.{frame_ext}")
+                frame = cv2.imread(img_path)
+                if frame is not None:
+                    writer.write(frame)
+        writer.release()
+    else:
+        # Export each highlight as an individual video
+        for event_num, event in sorted(events_detected.items()):
+            out_filename_individual = f"highlight_{event_num:03d}.mp4"
+            out_path = os.path.join(out_dir, out_filename_individual)
+            writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+
+            for idx in event["frames"]:
+                img_path = os.path.join(frame_root, video_name, f"frame{idx:05d}.{frame_ext}")
+                frame = cv2.imread(img_path)
+                if frame is not None:
+                    writer.write(frame)
+            writer.release()
 
     return
 
@@ -332,6 +346,13 @@ if __name__ == "__main__":
 
     # Export parameters
     parser.add_argument("--export_highlight_reel", action="store_true", help="Export the highlight reel video (disabled by default)")
+    parser.add_argument(
+        "--export_mode",
+        type=str,
+        default="individual",
+        choices=["individual", "combined"],
+        help="Export mode: 'individual' for separate videos per highlight, 'combined' for single video (default: individual)",
+    )
     parser.add_argument("--fps", type=int, default=30, help="Frames per second for exported highlight reel")
     # TODO: Remember to change below lines to for the final submission:
     # default frame_root should be "data/imgs"
@@ -504,6 +525,7 @@ if __name__ == "__main__":
                 frame_root=args.frame_root,
                 frame_ext=args.frame_ext,
                 out_filename=args.out_filename,
+                export_mode=args.export_mode,
             )
 
     # Save timing data and print summary
