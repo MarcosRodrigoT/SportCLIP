@@ -4,6 +4,7 @@ import pickle
 import argparse
 import numpy as np
 import pandas as pd
+import json
 from utils import Color
 from itertools import accumulate
 from utils import (
@@ -362,8 +363,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Initialize timing tracker
-    tracker = get_tracker(log_file="results/ablation/timing_log.json")
+    # Initialize timing tracker - create directory if needed
+    timing_log_dir = os.path.join(args.results_dir, args.video_name)
+    os.makedirs(timing_log_dir, exist_ok=True)
+    tracker = get_tracker(log_file=os.path.join(timing_log_dir, "timing_log.json"))
 
     # Compute derived parameters
     instant_window = int(args.context_window / 10)
@@ -516,6 +519,14 @@ if __name__ == "__main__":
             file.write(", ".join(map(str, pairs)))
 
     # Save highlight reel (only if requested)
+    # Export events_filtered to JSON for downstream processing
+    events_json_path = os.path.join("results", VIDEO, "events_filtered.json")
+    with open(events_json_path, "w") as f:
+        # Convert events_filtered to JSON-serializable format
+        events_json = {str(k): {"frames": v["frames"], "length": v["length"], "area": float(v["area"])} for k, v in events_filtered.items()}
+        json.dump(events_json, f, indent=2)
+    print(f"Events exported to: {events_json_path}")
+
     if args.export_highlight_reel:
         with tracker.track("Export highlight reel video", metadata):
             export_highlight_reel(

@@ -52,11 +52,15 @@ def main():
 
     args = parser.parse_args()
 
-    # Initialize timing tracker
-    tracker = get_tracker(log_file=f"{args.output_dir}/timing_log.json")
-
     # Extract sport name from sentences file for metadata
     sport_name = os.path.basename(args.sentences_file).replace("_set_", "/set").replace(".json", "")
+
+    # Create results folder first (needed for timing tracker)
+    results_folder = f"{args.output_dir}/{args.video_name}"
+    os.makedirs(results_folder, exist_ok=True)
+
+    # Initialize timing tracker
+    tracker = get_tracker(log_file=f"{results_folder}/timing_log.json")
 
     with tracker.track("multi_sentences.py - Setup", {"video_name": args.video_name, "sport": sport_name}):
         # Compute derived parameters
@@ -68,10 +72,6 @@ def main():
             sentences_data = json.load(f)
         highlight_sentences = sentences_data["highlight_sentences"]
         not_highlight_sentences = sentences_data["not_highlight_sentences"]
-
-        # Create results folder
-        results_folder = f"{args.output_dir}/{args.video_name}"
-        os.makedirs(results_folder, exist_ok=True)
 
     # Get ground truth and empty predictions
     with tracker.track("Load ground truth annotations", {"video_name": args.video_name, "sport": sport_name}):
